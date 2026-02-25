@@ -13,3 +13,10 @@ tmp.log
 uazapi_docs.html
 test-uazapi-*.json
 test-uazapi-*.log
+eslint_output.txt
+fix_map.cjs
+package-lock.json
+package.json
+puppeteer_error.png
+puppeteer_test.js
+trace.mjs

@@ -13,6 +13,8 @@ import { webhookRoutes } from './modules/webhooks/webhook.routes.js';
 import { uploadRoutes } from './modules/upload/upload.routes.js';
 import { agentsRouter } from './modules/agents/agents.routes.js';
 import { superAdminRoutes } from './modules/superadmin/superadmin.routes.js';
+import { productsRoutes } from './modules/products/products.routes.js';
+import { salesRoutes } from './modules/sales/sales.routes.js';
 import { logger } from './utils/logger.js';
 
 const app = express();
@@ -81,6 +83,8 @@ apiRouter.use('/conversations', conversationsRoutes);
 apiRouter.use('/whatsapp', whatsappRoutes);
 apiRouter.use('/agents', agentsRouter);
 apiRouter.use('/superadmin', superAdminRoutes);
+apiRouter.use('/products', productsRoutes);
+apiRouter.use('/sales', salesRoutes);
 
 app.use('/api/v1', apiRouter);
 
