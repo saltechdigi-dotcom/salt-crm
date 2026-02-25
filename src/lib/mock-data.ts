@@ -108,7 +108,21 @@ export const mockAIPrompts: AIPrompt[] = [];
 export const mockFollowUpMessages: FollowUpMessage[] = [];
 
 // Dashboard exports - vazios
-export const mockOrigins: string[] = [];
+export const mockOrigins: string[] = [
+  'WhatsApp',
+  'Instagram',
+  'Facebook',
+  'Google Ads',
+  'Site',
+  'Indicação',
+  'Telefone',
+  'E-mail',
+  'Landing Page',
+  'Presencial',
+  'LinkedIn',
+  'TikTok',
+  'Outro',
+];
 export const mockLeadsByOrigin: any[] = [];
 export const mockSalesByOrigin: any[] = [];
 export const mockLeadsByPeriod: any[] = [];
