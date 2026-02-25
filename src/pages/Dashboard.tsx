@@ -46,7 +46,6 @@ import {
   mockPipelineExitStages,
   mockPipelineExitStagesLeft,
   mockPipelineExitStagesRight,
-  mockOrigins,
   mockManagers,
   mockAgents,
 } from '@/lib/mock-data';
@@ -146,6 +145,15 @@ const Dashboard: React.FC = () => {
     api.get('/sales/stats')
       .then(res => setSalesStats(res.data))
       .catch(err => console.error('Error fetching sales stats:', err));
+  }, []);
+
+  // Lead origins from API
+  const [leadOrigins, setLeadOrigins] = useState<{ id: string; name: string }[]>([]);
+
+  useEffect(() => {
+    api.get('/origins')
+      .then(res => setLeadOrigins(Array.isArray(res.data) ? res.data : []))
+      .catch(err => console.error('Error fetching origins:', err));
   }, []);
 
   const [selectedManager, setSelectedManager] = useState<string>('');
@@ -1006,9 +1014,9 @@ const Dashboard: React.FC = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Origem</SelectItem>
-                {mockOrigins.map((origin) => (
-                  <SelectItem key={origin} value={origin}>
-                    {origin}
+                {leadOrigins.map((origin) => (
+                  <SelectItem key={origin.id} value={origin.name}>
+                    {origin.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -2080,9 +2088,9 @@ const Dashboard: React.FC = () => {
                           <SelectValue placeholder="Selecione canal" />
                         </SelectTrigger>
                         <SelectContent>
-                          {mockOrigins.map((origin) => (
-                            <SelectItem key={origin} value={origin} className="text-[11px]">
-                              {origin}
+                          {leadOrigins.map((origin) => (
+                            <SelectItem key={origin.id} value={origin.name} className="text-[11px]">
+                              {origin.name}
                             </SelectItem>
                           ))}
                         </SelectContent>

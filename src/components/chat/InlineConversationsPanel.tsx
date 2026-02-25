@@ -15,7 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useUserRole } from '@/hooks/useUserRole';
 import { api } from '@/lib/api';
-import { mockOrigins } from '@/lib/mock-data';
+
 import { toast } from 'sonner';
 import {
   Search,
@@ -298,6 +298,14 @@ export const InlineConversationsPanel: React.FC<InlineConversationsPanelProps> =
   const [showNewLeadModal, setShowNewLeadModal] = useState(false);
   const [newLead, setNewLead] = useState({ name: '', phone: '', email: '', reference: '', origin: '' });
   const [newLeadErrors, setNewLeadErrors] = useState({ name: '', phone: '', origin: '' });
+
+  // Lead origins from API
+  const [leadOrigins, setLeadOrigins] = useState<{ id: string; name: string }[]>([]);
+  useEffect(() => {
+    api.get('/origins')
+      .then(res => setLeadOrigins(Array.isArray(res.data) ? res.data : []))
+      .catch(err => console.error('Error fetching origins:', err));
+  }, []);
 
   // Tag filter state (funnel status filter)
   const [tagFilterOpen, setTagFilterOpen] = useState(false);
@@ -2128,8 +2136,8 @@ export const InlineConversationsPanel: React.FC<InlineConversationsPanelProps> =
                   <SelectValue placeholder="Selecione a origem" />
                 </SelectTrigger>
                 <SelectContent className="bg-card border border-border shadow-lg z-50">
-                  {mockOrigins.map((origin) => (
-                    <SelectItem key={origin} value={origin}>{origin}</SelectItem>
+                  {leadOrigins.map((origin) => (
+                    <SelectItem key={origin.id} value={origin.name}>{origin.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

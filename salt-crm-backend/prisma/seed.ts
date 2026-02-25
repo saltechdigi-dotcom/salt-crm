@@ -215,6 +215,40 @@ async function main() {
     }
 
     console.log(`✅ ${stages.length} stages created`);
+
+    // ============ LEAD ORIGINS ============
+    const defaultOrigins = [
+        { name: 'WhatsApp', color: '#25D366' },
+        { name: 'Instagram', color: '#E4405F' },
+        { name: 'Facebook', color: '#1877F2' },
+        { name: 'Google Ads', color: '#4285F4' },
+        { name: 'Site', color: '#6366F1' },
+        { name: 'Indicação', color: '#F59E0B' },
+        { name: 'Telefone', color: '#10B981' },
+        { name: 'E-mail', color: '#EF4444' },
+        { name: 'Landing Page', color: '#8B5CF6' },
+        { name: 'Presencial', color: '#06B6D4' },
+    ];
+
+    for (const origin of defaultOrigins) {
+        await prisma.leadOrigin.upsert({
+            where: {
+                tenantId_name: {
+                    tenantId: tenant.id,
+                    name: origin.name,
+                },
+            },
+            update: {},
+            create: {
+                tenantId: tenant.id,
+                name: origin.name,
+                color: origin.color,
+                type: 'manual',
+            },
+        });
+    }
+
+    console.log(`✅ ${defaultOrigins.length} lead origins created`);
     console.log('\n🎉 Seed completed!');
     console.log('\n📋 Login credentials:');
     console.log('  Admin:    eryk@saltdigi.com.br / admin123');
