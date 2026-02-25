@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Header } from '@/components/ui/header';
 import { SubHeader } from '@/components/ui/header';
@@ -89,6 +89,7 @@ import { NpsDetailModal, NpsCategory } from '@/components/nps/NpsDetailModal';
 import { ChatDialog } from '@/components/chat/ChatDialog';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { DateRange } from 'react-day-picker';
+import api from '@/lib/api';
 
 // Interface para leads da tabela (igual ao Funil)
 interface TableLead {
@@ -127,6 +128,25 @@ const Dashboard: React.FC = () => {
     managerId: '',
     agentId: '',
   });
+
+  // Sales stats from API
+  const [salesStats, setSalesStats] = useState<{
+    todayRevenue: number;
+    todaySalesCount: number;
+    monthRevenue: number;
+    monthSalesCount: number;
+    totalRevenue: number;
+    totalSalesCount: number;
+    pendingSalesCount: number;
+    recentSales: any[];
+    salesByAgent: any[];
+  } | null>(null);
+
+  useEffect(() => {
+    api.get('/sales/stats')
+      .then(res => setSalesStats(res.data))
+      .catch(err => console.error('Error fetching sales stats:', err));
+  }, []);
 
   const [selectedManager, setSelectedManager] = useState<string>('');
   const [selectedStage, setSelectedStage] = useState<string | null>(null);
@@ -1146,6 +1166,50 @@ const Dashboard: React.FC = () => {
                   />
                 );
               })}
+            </div>
+          </div>
+        </div>
+
+        {/* Visão de Vendas Block */}
+        <div className="bg-card/90 backdrop-blur-sm rounded-xl border border-border/20 overflow-hidden" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+          <div className="px-2.5 py-1.5 border-b border-border/10 flex items-center gap-1.5">
+            <DollarSign className="w-4 h-4 text-green-500/70" />
+            <span className="text-xs font-semibold text-foreground/80 uppercase tracking-wide">Visão de Vendas</span>
+          </div>
+          <div className="p-2.5">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <KPICard
+                label="Vendas Hoje"
+                value={salesStats ? `R$ ${Number(salesStats.todayRevenue).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'R$ 0,00'}
+                color="success"
+                size="sm"
+                className="animate-slide-up"
+                style={{ animationDelay: '0ms' }}
+              />
+              <KPICard
+                label="Vendas no Mês"
+                value={salesStats ? `R$ ${Number(salesStats.monthRevenue).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'R$ 0,00'}
+                color="primary"
+                size="sm"
+                className="animate-slide-up"
+                style={{ animationDelay: '40ms' }}
+              />
+              <KPICard
+                label="Total de Vendas"
+                value={salesStats?.totalSalesCount?.toString() || '0'}
+                color="info"
+                size="sm"
+                className="animate-slide-up"
+                style={{ animationDelay: '80ms' }}
+              />
+              <KPICard
+                label="Vendas Pendentes"
+                value={salesStats?.pendingSalesCount?.toString() || '0'}
+                color="warning"
+                size="sm"
+                className="animate-slide-up"
+                style={{ animationDelay: '120ms' }}
+              />
             </div>
           </div>
         </div>
