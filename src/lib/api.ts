@@ -41,7 +41,7 @@ api.interceptors.response.use(
 
                 // Try to refresh the token
                 const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, {
-                    refreshToken,
+                    refresh_token: refreshToken,
                 });
 
                 // Store new tokens (API returns snake_case)

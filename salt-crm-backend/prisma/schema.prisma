@@ -406,6 +406,7 @@ model SuperAdminUser {
   avatarUrl     String?         @map("avatar_url")
   role          SuperAdminRole  @default(operational)
   isActive      Boolean         @default(true) @map("is_active")
+  refreshToken  String?         @map("refresh_token")
   lastLoginAt   DateTime?       @map("last_login_at")
   createdAt     DateTime        @default(now()) @map("created_at")
   updatedAt     DateTime        @updatedAt @map("updated_at")

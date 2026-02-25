@@ -134,6 +134,7 @@ export class AuthService {
             where: { id: admin.id },
             data: {
                 lastLoginAt: new Date(),
+                refreshToken,
             },
         });
 
@@ -184,23 +185,26 @@ export class AuthService {
             // Check if it's a SuperAdmin
             const admin = await prisma.superAdminUser.findUnique({
                 where: { id: decoded.sub },
+                select: {
+                    id: true,
+                    email: true,
+                    role: true,
+                    isActive: true,
+                    refreshToken: true,
+                },
             });
 
             if (!admin) {
                 throw new UnauthorizedError('Usuário não encontrado');
             }
 
-            user = {
-                id: admin.id,
-                email: admin.email,
-                role: admin.role,
-                tenantId: 'master-tenant',
-                isActive: admin.isActive,
-                refreshToken: admin.password // Admin doesn't have refresh token field yet, using a dummy bypass or we can add it later. For now we will allow it if they reached here or skip strictly checking refreshToken match for master.
-            } as any;
-
             if (!admin.isActive) {
                 throw new UnauthorizedError('Usuário desativado');
+            }
+
+            // Validate stored refresh token
+            if (admin.refreshToken !== refreshToken) {
+                throw new UnauthorizedError('Refresh token revogado');
             }
 
             const newAccessToken = generateAccessToken({
@@ -210,6 +214,12 @@ export class AuthService {
                 tenantId: 'master-tenant',
             });
             const newRefreshToken = generateRefreshToken(admin.id);
+
+            // Rotate refresh token in DB
+            await prisma.superAdminUser.update({
+                where: { id: admin.id },
+                data: { refreshToken: newRefreshToken },
+            });
 
             return {
                 access_token: newAccessToken,
@@ -249,10 +259,19 @@ export class AuthService {
     }
 
     async logout(userId: string): Promise<void> {
-        await prisma.user.update({
-            where: { id: userId },
-            data: { refreshToken: null },
-        });
+        // Try User first, then SuperAdmin
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (user) {
+            await prisma.user.update({
+                where: { id: userId },
+                data: { refreshToken: null },
+            });
+        } else {
+            await prisma.superAdminUser.update({
+                where: { id: userId },
+                data: { refreshToken: null },
+            }).catch(() => { }); // Ignore if not found
+        }
     }
 
     async getMe(userId: string) {
