@@ -37,6 +37,7 @@ import { LeadHistoryPanel } from '@/components/leads/LeadHistoryPanel';
 import OperationalReport from '@/components/reports/OperationalReport';
 import { NpsDetailModal, NpsCategory } from '@/components/nps/NpsDetailModal';
 import { ChatDialog } from '@/components/chat/ChatDialog';
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { DateRange } from 'react-day-picker';
 import { Header } from '@/components/ui/header';
