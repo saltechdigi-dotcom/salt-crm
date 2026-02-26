@@ -1,5 +1,13 @@
-import * as React from "react";
-
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import {
+  BarChart3, Filter, RefreshCcw, Bot, MessageSquare, Star, TrendingUp,
+  PhoneCall, Users, Package, UserCog, Settings, QrCode, Key, Calendar,
+  Receipt, Headphones, Sparkles, ChevronLeft, Menu, Pin, CalendarDays,
+  User, LogOut, LucideIcon, ChevronDown, Link as LinkIcon
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getUserAvatarUrl, getCompanySettings } from "@/hooks/useUserProfile";
 import saltLogo from "@/assets/salt-logo.png";
 import {
@@ -94,7 +102,7 @@ const configItems: ConfigItemConfig[] = [
   // Configurações
   { id: 'config', title: 'Empresa', icon: Settings, iconColor: 'bg-[#6B7280]', section: 'config', category: 'config' },
   { id: 'qrcode', title: 'QR Code WhatsApp', icon: QrCode, iconColor: 'bg-[#25D366]', section: 'qrcode', category: 'config' },
-  { id: 'whatsapp-api', title: 'WhatsApp API', icon: Link, iconColor: 'bg-[#25D366]', section: 'whatsapp-api', category: 'config' },
+  { id: 'whatsapp-api', title: 'WhatsApp API', icon: LinkIcon, iconColor: 'bg-[#25D366]', section: 'whatsapp-api', category: 'config' },
   { id: 'api-openai', title: 'API OpenAI', icon: Key, iconColor: 'bg-[#10A37F]', section: 'api-openai', category: 'config' },
   { id: 'google-calendar', title: 'Google Calendar', icon: Calendar, iconColor: 'bg-[#4285F4]', section: 'google-calendar', category: 'config' },
   // SALT
@@ -136,18 +144,18 @@ const NotificationDisplay: React.FC = () => {
 };
 
 const Header = React.forwardRef<HTMLElement, HeaderProps>(
-  ({ 
-    className, 
-    title, 
-    showBack = false, 
+  ({
+    className,
+    title,
+    showBack = false,
     showMenu = false,
-    showNotifications = true, 
+    showNotifications = true,
     showAvatar = true,
     showModuleIcons = false,
     onBack,
     onMenuClick,
     rightContent,
-    ...props 
+    ...props
   }, ref) => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -155,16 +163,16 @@ const Header = React.forwardRef<HTMLElement, HeaderProps>(
     const { isModuleEnabled } = useModules();
     const [avatarUrl, setAvatarUrl] = useState<string | null>(getUserAvatarUrl());
     const [companySettings, setCompanySettings] = useState(getCompanySettings());
-    
+
     // Pins and Schedules state
     const [showPinsPanel, setShowPinsPanel] = useState(false);
     const [showSchedulesPanel, setShowSchedulesPanel] = useState(false);
     const { scheduleCount } = useLeadSchedules();
-    
+
     // Count pins (active demands)
     const demands = leadDemandsStore.getDemands();
     const pinCount = demands.filter(d => !d.resolved).length;
-    
+
     // Listen for profile updates
     useEffect(() => {
       const handleProfileUpdate = (e: CustomEvent) => {
@@ -242,7 +250,7 @@ const Header = React.forwardRef<HTMLElement, HeaderProps>(
 
           <div className="flex items-center gap-1.5">
             {rightContent}
-            
+
             {/* Module Icons: Roleta, Estoque, Agentes - Desktop only */}
             {showModuleIcons && (
               <div className="hidden md:flex items-center gap-1 mr-1">
@@ -254,8 +262,8 @@ const Header = React.forwardRef<HTMLElement, HeaderProps>(
                         onClick={() => navigate('/roleta')}
                         className={cn(
                           "flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-200 active:scale-95",
-                          location.pathname === '/roleta' 
-                            ? "bg-primary/10 ring-1 ring-primary/20" 
+                          location.pathname === '/roleta'
+                            ? "bg-primary/10 ring-1 ring-primary/20"
                             : "hover:bg-secondary/60"
                         )}
                       >
@@ -332,7 +340,7 @@ const Header = React.forwardRef<HTMLElement, HeaderProps>(
                 <div className="w-px h-5 bg-border/30 mx-0.5" />
               </div>
             )}
-            
+
             {/* Pin Icon with badge */}
             <Tooltip>
               <TooltipTrigger asChild>
@@ -372,10 +380,10 @@ const Header = React.forwardRef<HTMLElement, HeaderProps>(
                 Agendamentos
               </TooltipContent>
             </Tooltip>
-            
+
             {/* Inline Notification - Subtle alert next to bell */}
             <NotificationDisplay />
-            
+
             {/* Notifications - Hierarchical System */}
             {showNotifications && <HierarchicalNotifications />}
 
@@ -462,9 +470,9 @@ const Header = React.forwardRef<HTMLElement, HeaderProps>(
                       <span className="text-sm">{item.title}</span>
                     </DropdownMenuItem>
                   ))}
-                  
+
                   <DropdownMenuSeparator />
-                  
+
                   {/* Configurações */}
                   <div className="px-2 py-1.5">
                     <span className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider">Configurações</span>
@@ -484,9 +492,9 @@ const Header = React.forwardRef<HTMLElement, HeaderProps>(
                       <span className="text-sm">{item.title}</span>
                     </DropdownMenuItem>
                   ))}
-                  
+
                   <DropdownMenuSeparator />
-                  
+
                   {/* SALT */}
                   <div className="px-2 py-1.5">
                     <span className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider">SALT</span>
@@ -516,7 +524,7 @@ const Header = React.forwardRef<HTMLElement, HeaderProps>(
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center gap-1.5 p-1 rounded-lg hover:bg-secondary/60 transition-all active:scale-95 group">
                     <Avatar className="w-6 h-6 ring-1 ring-transparent group-hover:ring-primary/20 transition-all">
-                      <AvatarImage src={avatarUrl || { name: "User", email: "", role: "user" }.avatar} alt={{ name: "User", email: "", role: "user" }.name} />
+                      <AvatarImage src={avatarUrl || ""} alt={{ name: "User", email: "", role: "user" }.name} />
                       <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-medium">
                         {initials}
                       </AvatarFallback>
@@ -529,14 +537,14 @@ const Header = React.forwardRef<HTMLElement, HeaderProps>(
                     <p className="font-medium text-foreground">{{ name: "User", email: "", role: "user" }.name}</p>
                     <p className="text-xs text-muted-foreground">{{ name: "User", email: "", role: "user" }.email}</p>
                   </div>
-                  <DropdownMenuItem 
+                  <DropdownMenuItem
                     className="cursor-pointer gap-2 py-2.5"
                     onClick={() => navigate('/outros', { state: { section: 'perfil' } })}
                   >
                     <User className="w-4 h-4" />
                     <span>Meu Perfil</span>
                   </DropdownMenuItem>
-                  <DropdownMenuItem 
+                  <DropdownMenuItem
                     className="cursor-pointer gap-2 py-2.5"
                     onClick={() => navigate('/outros', { state: { section: 'config' } })}
                   >
@@ -544,7 +552,7 @@ const Header = React.forwardRef<HTMLElement, HeaderProps>(
                     <span>Configurações</span>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem 
+                  <DropdownMenuItem
                     className="cursor-pointer gap-2 py-2.5 text-destructive focus:text-destructive"
                     onClick={handleLogout}
                   >
@@ -556,17 +564,17 @@ const Header = React.forwardRef<HTMLElement, HeaderProps>(
             )}
           </div>
         </div>
-        
+
         {/* Seller Pins Panel */}
-        <SellerPinsPanel 
-          open={showPinsPanel} 
-          onOpenChange={setShowPinsPanel} 
+        <SellerPinsPanel
+          open={showPinsPanel}
+          onOpenChange={setShowPinsPanel}
         />
-        
+
         {/* Seller Schedules Panel */}
-        <SellerSchedulesPanel 
-          open={showSchedulesPanel} 
-          onOpenChange={setShowSchedulesPanel} 
+        <SellerSchedulesPanel
+          open={showSchedulesPanel}
+          onOpenChange={setShowSchedulesPanel}
         />
       </header>
     );
