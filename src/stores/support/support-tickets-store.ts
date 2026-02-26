@@ -1,10 +1,29 @@
 // Shared Support Tickets Store
 // This store is used to share support tickets between /outros and /super-admin
 
-import { SupportTicket, SupportType, SupportPriority, SupportStatus, mockSupportTickets } from '@/lib/super-admin-mock-data';
+export type SupportType = 'tecnico' | 'financeiro' | 'comercial' | 'outro' | 'whatsapp' | 'funil' | 'ia';
+export type SupportPriority = 'baixa' | 'media' | 'alta' | 'critica';
+export type SupportStatus = 'aberto' | 'em_atendimento' | 'resolvido';
+
+export interface SupportTicket {
+  id: string;
+  tenantId: string;
+  tenantName: string;
+  userId: string;
+  userName: string;
+  type: SupportType;
+  subject: string;
+  description: string;
+  priority: SupportPriority;
+  status: SupportStatus;
+  createdAt: string;
+  resolvedAt?: string;
+  resolvedBy?: string;
+  assignedTo?: string;
+}
 
 // In-memory store for support tickets (will be replaced by Supabase)
-let supportTicketsStore: SupportTicket[] = [...mockSupportTickets];
+let supportTicketsStore: SupportTicket[] = [];
 
 // Listeners for state changes
 type Listener = () => void;
@@ -46,7 +65,7 @@ export const supportTicketsApi = {
   update: (id: string, updates: Partial<SupportTicket>): SupportTicket | undefined => {
     const index = supportTicketsStore.findIndex(t => t.id === id);
     if (index === -1) return undefined;
-    
+
     supportTicketsStore[index] = { ...supportTicketsStore[index], ...updates };
     supportTicketsStore = [...supportTicketsStore]; // Trigger reactivity
     notifyListeners();
@@ -265,4 +284,3 @@ export const createUpgradeRequestTicket = (
   });
 };
 
-export type { SupportTicket, SupportType, SupportPriority, SupportStatus };

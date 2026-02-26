@@ -1,37 +1,5 @@
 import * as React from "react";
-import { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import { cn } from "@/lib/utils";
-import { 
-  Bell, 
-  Users, 
-  Clock, 
-  AlertTriangle, 
-  Trophy, 
-  MessageCircle, 
-  UserPlus, 
-  AlertCircle,
-  Sparkles,
-  Wrench,
-  Rocket,
-  PauseCircle,
-  Building2,
-  ChevronRight,
-  DollarSign,
-  CheckCircle2
-} from "lucide-react";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { 
-  mockTeamUnreadMessages, 
-  mockCurrentUserRole,
-  getNotificationsByRole,
-  type UserRole,
-  type Notification 
-} from "@/lib/mock-data";
+
 import { useSalesStore, type SaleNotification } from "@/stores/sales";
 
 interface HierarchicalNotificationsProps {
@@ -90,7 +58,7 @@ const getNavigationPath = (notif: Notification): { path: string; state?: Record<
 };
 
 const HierarchicalNotifications: React.FC<HierarchicalNotificationsProps> = ({
-  userRole = mockCurrentUserRole,
+  userRole = "tenant_admin",
   userId = 'agent-1',
   teamId = 'team-1',
   onSaleNotificationClick,

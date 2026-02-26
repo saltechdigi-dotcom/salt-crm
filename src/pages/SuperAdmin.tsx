@@ -31,12 +31,6 @@ import { toast } from 'sonner';
 import saltLogo from '@/assets/salt-logo.png';
 import api from '@/lib/api';
 import {
-  mockCurrentSuperAdmin,
-  mockDashboardKPIs,
-  mockFinancialKPIs,
-  mockTenants,
-  mockSuperAdminUsers,
-  mockCriticalAlerts,
   nichePresets,
   availablePlans,
   legacyPlanMapping,
@@ -48,12 +42,18 @@ import {
   type SuperAdminUser,
   type SuperAdminRole,
   type CriticalAlert,
-  type SupportTicket,
-  type SupportStatus,
   type ClientLifecycleStatus,
   type OnboardingChecklist,
   type PlanId,
-} from '@/lib/super-admin-mock-data';
+} from '@/lib/super-admin-types';
+
+// Fallback empty data to replace removed mocks
+const mockTenants: any[] = [];
+const mockSuperAdminUsers: any[] = [];
+const mockCriticalAlerts: any[] = [];
+const mockDashboardKPIs: any = { totalTenants: 0, activeTenants: 0, overdueTenants: 0, suspendedTenants: 0, totalActiveUsers: 0, disconnectedWhatsapps: 0, criticalAlerts: 0 };
+const mockFinancialKPIs: any = { mrr: 0, lastMonthRevenue: 0, currentMonthRevenue: 0, forecastedRevenue: 0, overdueAmount: 0, avgTicket: 0 };
+const mockCurrentSuperAdmin: any = { id: "", name: "Admin", email: "", role: "SUPER_ADMIN_MASTER", status: "ativo", lastLogin: "" };
 import {
   NICHE_FUNNEL_PRESETS,
   FIXED_FUNNEL_STATUSES,
@@ -62,10 +62,11 @@ import {
   type TenantFunnelConfig
 } from '@/lib/niche-funnel-presets';
 import { supportTicketsApi } from '@/stores/support';
+import type { SupportTicket, SupportStatus } from '@/stores/support/support-tickets-store';
 import { TenantPlanManager } from '@/components/super-admin/TenantPlanManager';
+import { PlanManagementModal } from '@/components/super-admin/PlanManagementModal';
 import { PlanType, FeatureFlags, PLAN_CONFIGS } from '@/lib/plan-features';
 import { whatsappApi } from '@/stores/whatsapp/whatsapp-api';
-import { QRCodeSVG } from 'qrcode.react'; // Assuming we might need this or just render img if base64 provided. 
 // Actually, if UAZAPI returns base64 image, we use <img src="..." />.
 // If it returns a string to be QR-encoded, we need a lib.
 // Uazapi v2 usually returns base64 image string.
@@ -168,11 +169,11 @@ const KPICard: React.FC<{
 const LifecycleStatusBadge: React.FC<{ status: ClientLifecycleStatus }> = ({ status }) => {
   const statusStyles: Record<ClientLifecycleStatus, { variant: 'default' | 'secondary' | 'destructive' | 'outline'; className: string }> = {
     onboarding: { variant: 'secondary', className: 'bg-primary/10 text-primary border-primary/20' },
-    ativo: { variant: 'default', className: 'bg-success/10 text-success border-success/20' },
-    risco: { variant: 'destructive', className: 'bg-warning/10 text-warning border-warning/20' },
-    inadimplente: { variant: 'destructive', className: 'bg-destructive/10 text-destructive border-destructive/20' },
-    suspenso: { variant: 'destructive', className: 'bg-destructive/10 text-destructive border-destructive/20' },
-    cancelado: { variant: 'outline', className: 'bg-muted/50 text-muted-foreground border-border' },
+    active: { variant: 'default', className: 'bg-success/10 text-success border-success/20' },
+    risk: { variant: 'destructive', className: 'bg-warning/10 text-warning border-warning/20' },
+    overdue: { variant: 'destructive', className: 'bg-destructive/10 text-destructive border-destructive/20' },
+    suspended: { variant: 'destructive', className: 'bg-destructive/10 text-destructive border-destructive/20' },
+    cancelled: { variant: 'outline', className: 'bg-muted/50 text-muted-foreground border-border' },
   };
 
   const style = statusStyles[status];
@@ -1200,7 +1201,7 @@ const TenantDetailModal: React.FC<{
 }> = ({ tenant, open, onClose, isMaster, onEnterAsAdmin, onUpdateTenant, supportTickets, onChangePlan, onToggleFeatureOverride }) => {
   const [activeTab, setActiveTab] = useState('overview');
   const [editedNotes, setEditedNotes] = useState('');
-  const [editedLifecycleStatus, setEditedLifecycleStatus] = useState<ClientLifecycleStatus>('ativo');
+  const [editedLifecycleStatus, setEditedLifecycleStatus] = useState<ClientLifecycleStatus>('active');
   const [connectModalOpen, setConnectModalOpen] = useState(false);
   const [selectedConnectionId, setSelectedConnectionId] = useState<string | undefined>(undefined);
   const [resetPasswordUserId, setResetPasswordUserId] = useState<string | null>(null);
@@ -1464,7 +1465,7 @@ const TenantDetailModal: React.FC<{
                 </div>
                 <div className="p-3 rounded-xl border bg-card">
                   <span className="text-[10px] uppercase tracking-widest text-muted-foreground/70">Método</span>
-                  <p className="text-sm font-medium mt-1">{tenant.paymentMethod}</p>
+                  <p className="text-sm font-medium mt-1">{tenant.payments?.[0]?.method || '-'}</p>
                 </div>
                 <div className="p-3 rounded-xl border bg-card">
                   <span className="text-[10px] uppercase tracking-widest text-muted-foreground/70">Status Pagamento</span>
@@ -1487,7 +1488,7 @@ const TenantDetailModal: React.FC<{
                       </tr>
                     </thead>
                     <tbody>
-                      {tenant.paymentHistory.map((payment) => (
+                      {tenant.payments?.map((payment) => (
                         <tr key={payment.id} className="border-t border-border/50">
                           <td className="p-3 text-xs">{payment.date}</td>
                           <td className="p-3 text-xs font-medium">R$ {payment.amount.toLocaleString('pt-BR')}</td>
@@ -1588,7 +1589,7 @@ const TenantDetailModal: React.FC<{
                 <Plus className="w-4 h-4" /> Whatsapp Qrcode
               </Button>
             </div>
-            {tenant.whatsapps.length > 0 ? (
+            {tenant.whatsappConnections?.length > 0 ? (
               <div className="rounded-xl border overflow-hidden">
                 <table className="w-full">
                   <thead className="bg-muted/30">
@@ -1601,7 +1602,7 @@ const TenantDetailModal: React.FC<{
                     </tr>
                   </thead>
                   <tbody>
-                    {tenant.whatsapps.map((wa) => (
+                    {tenant.whatsappConnections?.map((wa) => (
                       <tr key={wa.id} className="border-t border-border/50">
                         <td className="p-3 text-xs font-medium">{wa.number || '-'}</td>
                         <td className="p-3">
@@ -2335,6 +2336,7 @@ const SuperAdmin: React.FC = () => {
   const [showUsersListModal, setShowUsersListModal] = useState(false);
   const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
   const [showSupportPanel, setShowSupportPanel] = useState(false);
+  const [showPlanManagementModal, setShowPlanManagementModal] = useState(false);
   const [showOnboardingPendingModal, setShowOnboardingPendingModal] = useState(false);
   const [supportPanelFilter, setSupportPanelFilter] = useState<'all' | 'aberto' | 'critica'>('all');
   const [kpiFilter, setKpiFilter] = useState<KPIFilter>(null);
@@ -2483,7 +2485,7 @@ const SuperAdmin: React.FC = () => {
         return completed < items.length;
       });
     } else if (kpiFilter === 'risco') {
-      filtered = filtered.filter(t => t.lifecycleStatus === 'risco');
+      filtered = filtered.filter(t => t.lifecycleStatus === 'risk');
     }
 
     return filtered;
@@ -2657,9 +2659,9 @@ const SuperAdmin: React.FC = () => {
     try {
       const payload: any = {};
       if (updates.name) payload.name = updates.name;
-      if (updates.planId || updates.plan) {
-        const potentialPlanId = updates.planId || (availablePlans.find(p => p.name === updates.plan)?.id);
-        if (potentialPlanId && potentialPlanId.length === 36) payload.planId = potentialPlanId;
+      if (updates.plan) {
+        const potentialPlanId = updates.plan || (availablePlans.find(p => p.name === updates.plan)?.id);
+        if (potentialPlanId) payload.plan = potentialPlanId;
       }
       if (updates.monthlyValue !== undefined) payload.monthlyValue = updates.monthlyValue;
       if (updates.usersLimit !== undefined) payload.usersLimit = updates.usersLimit;
@@ -3188,18 +3190,16 @@ const SuperAdmin: React.FC = () => {
         onEnterAsAdmin={handleEnterAsAdmin}
         onUpdateTenant={handleUpdateTenant}
         supportTickets={supportTickets}
-        onChangePlan={(tenantId, newPlan) => {
-          const plan = availablePlans.find(p => p.id === newPlan);
-          handleUpdateTenant(tenantId, {
-            plan: newPlan,
-            monthlyValue: (plan?.monthlyPricePerUser || 199) * 3
-          });
-          toast.success(`Plano alterado para ${plan?.name || newPlan}`);
-        }}
+        onChangePlan={(tenantId, newPlan) => handleUpdateTenant(tenantId, { plan: newPlan as any })}
         onToggleFeatureOverride={(tenantId, featureKey, enabled) => {
           // Mock - em produção salvaria no banco
           toast.success(`Override ${enabled ? 'ativado' : 'desativado'} para ${featureKey}`);
         }}
+      />
+
+      <PlanManagementModal
+        open={showPlanManagementModal}
+        onOpenChange={setShowPlanManagementModal}
       />
 
       <NewTenantModal

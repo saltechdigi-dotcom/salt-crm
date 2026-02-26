@@ -93,7 +93,7 @@ interface InlineConversationsPanelProps {
 // Left blank because we fetch from API now
 
 // Mock vendedores list
-const mockVendedores = [
+const [] = [
   { id: '1', name: 'Ademir José', email: 'ademir.jose@empresa.com' },
   { id: '2', name: 'Administrativo TIME', email: 'admin@empresa.com' },
   { id: '3', name: 'Alexsandro', email: 'alexsandro.maciel@empresa.com' },
@@ -878,7 +878,7 @@ export const InlineConversationsPanel: React.FC<InlineConversationsPanelProps> =
             </div>
             <ScrollArea className="h-[280px]">
               <div className="space-y-2">
-                {mockVendedores.map((vendedor) => (
+                {[].map((vendedor) => (
                   <button
                     key={vendedor.id}
                     className={listItemClasses}
@@ -1739,7 +1739,7 @@ export const InlineConversationsPanel: React.FC<InlineConversationsPanelProps> =
           onClose={() => setShowPinModal(false)}
           leadId={selectedConversation.id}
           leadName={selectedConversation.name}
-          sellers={mockVendedores}
+          sellers={[]}
           onPin={handlePinConversation}
         />
       )}

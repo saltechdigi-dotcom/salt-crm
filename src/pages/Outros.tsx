@@ -1,22 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { socketClient } from '@/lib/socket';
-import { Header } from '@/components/ui/header';
-import { IOSCard, IOSSection, IOSSectionItem } from '@/components/ui/ios-card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ImageCropper } from '@/components/ui/image-cropper';
-import { EquipesSection } from '@/components/equipes/EquipesSection';
-import { UsuariosSection } from '@/components/usuarios/UsuariosSection';
-import { InventorySection } from '@/components/inventory/InventorySection';
-import { ClientsSection } from '@/components/clients/ClientsSection';
-import { ListsSection } from '@/components/lists/ListsSection';
-import { EtiquetasSection } from '@/components/etiquetas/EtiquetasSection';
-import { mockAIPrompts, mockFollowUpMessages, mockManagers, mockTeams, mockAgents, mockUser } from '@/lib/mock-data';
+
 import { useToast } from '@/hooks/use-toast';
 import { useUserProfile, useCompanySettings } from '@/hooks/useUserProfile';
 import { createSupportTicketFromForm, createServiceRequestTicket, createIALigacaoTicket, createWebhookIntegrationTicket, createUpgradeRequestTicket, supportTicketsApi } from '@/stores/support';
@@ -505,7 +488,7 @@ const Outros: React.FC = () => {
     e.target.value = '';
   };
 
-  const initials = mockUser.name
+  const initials = { name: "User", email: "", role: "user" }.name
     .split(' ')
     .map(n => n[0])
     .join('')
@@ -1777,9 +1760,9 @@ TOOLS DISPONÍVEIS:
     return (
       <div className="min-h-screen bg-background pb-[var(--safe-area-bottom)]">
         <EquipesSection
-          managers={mockManagers}
-          agents={mockAgents}
-          teams={mockTeams}
+          managers={[]}
+          agents={[]}
+          teams={[]}
           onBack={handleBackToMain}
         />
       </div>
@@ -1808,7 +1791,7 @@ TOOLS DISPONÍVEIS:
             <div className="flex flex-col items-center gap-3">
               <div className="relative">
                 <Avatar className="w-20 h-20 ring-1 ring-border/10">
-                  <AvatarImage src={profile.avatarUrl || undefined} alt={mockUser.name} />
+                  <AvatarImage src={profile.avatarUrl || undefined} alt={{ name: "User", email: "", role: "user" }.name} />
                   <AvatarFallback className="bg-primary/10 text-primary text-xl font-medium">
                     {initials}
                   </AvatarFallback>
@@ -1829,7 +1812,7 @@ TOOLS DISPONÍVEIS:
               </div>
 
               <div className="text-center">
-                <h3 className="text-[15px] font-semibold text-foreground">{mockUser.name}</h3>
+                <h3 className="text-[15px] font-semibold text-foreground">{{ name: "User", email: "", role: "user" }.name}</h3>
                 <p className="text-[12px] text-muted-foreground/70">eryk@saltdigi.com.br</p>
               </div>
 
@@ -2615,8 +2598,8 @@ TOOLS DISPONÍVEIS:
         iaLigacaoForm,
         'current-tenant',
         'Empresa Atual',
-        mockUser.id,
-        mockUser.name
+        { name: "User", email: "", role: "user" }.id,
+        { name: "User", email: "", role: "user" }.name
       );
 
       toast({
@@ -2901,8 +2884,8 @@ TOOLS DISPONÍVEIS:
         webhookForm,
         'current-tenant',
         'Empresa Atual',
-        mockUser.id,
-        mockUser.name
+        { name: "User", email: "", role: "user" }.id,
+        { name: "User", email: "", role: "user" }.name
       );
 
       toast({
@@ -3342,8 +3325,8 @@ TOOLS DISPONÍVEIS:
       suporteForm.descricao,
       'current-tenant', // Would come from auth context
       'Empresa Atual',  // Would come from tenant context
-      mockUser.id,
-      mockUser.name,
+      { name: "User", email: "", role: "user" }.id,
+      { name: "User", email: "", role: "user" }.name,
       'media'
     );
 
@@ -3624,8 +3607,8 @@ TOOLS DISPONÍVEIS:
         serviceName,
         'current-tenant', // Would come from auth context
         'Empresa Atual',  // Would come from tenant context
-        mockUser.id,
-        mockUser.name
+        { name: "User", email: "", role: "user" }.id,
+        { name: "User", email: "", role: "user" }.name
       );
 
       toast({
@@ -3638,8 +3621,8 @@ TOOLS DISPONÍVEIS:
         'Serviços e Expansões (Geral)',
         'current-tenant',
         'Empresa Atual',
-        mockUser.id,
-        mockUser.name
+        { name: "User", email: "", role: "user" }.id,
+        { name: "User", email: "", role: "user" }.name
       );
 
       toast({

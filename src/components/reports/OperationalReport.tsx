@@ -1,15 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useModules } from '@/hooks/useModules';
-import { useUserRole } from '@/hooks/useUserRole';
-import {
-  mockKPIs,
-  mockLeadsByOrigin,
-  mockAgents,
-  mockPipelineMainStages,
-  mockPipelineExitStages,
-  mockTeamUnreadMessages,
-  mockSalesData
-} from '@/lib/mock-data';
+
 import {
   TrendingUp,
   TrendingDown,
@@ -122,7 +112,7 @@ const OperationalReport: React.FC = () => {
   // Calculate derived metrics from existing mock data
   const reportData = useMemo(() => {
     // Verificação de segurança para dados vazios
-    if (!mockKPIs || mockKPIs.length === 0) {
+    if (![] || [].length === 0) {
       return {
         executive: { totalLeads: 0, totalAttendances: 0, qualifiedLeads: 0, conversions: 0, conversionRate: '0', previousPeriodChange: 0 },
         commercial: { topVendedoresBySales: [], totalSales: 0, avgTimeToClose: '-', avgTimeMinutes: 0, responseRate: 0, formatCurrency: (v: number) => `R$ ${v}` },
@@ -132,12 +122,12 @@ const OperationalReport: React.FC = () => {
       };
     }
 
-    const totalLeads = Math.round((mockKPIs[0]?.value as number || 0) * periodMultiplier);
-    const qualifiedLeads = Math.round((mockKPIs[1]?.value as number || 0) * periodMultiplier);
+    const totalLeads = Math.round(([][0]?.value as number || 0) * periodMultiplier);
+    const qualifiedLeads = Math.round(([][1]?.value as number || 0) * periodMultiplier);
     const conversions = Math.round(totalLeads * 0.12);
     const conversionRate = totalLeads > 0 ? ((conversions / totalLeads) * 100).toFixed(1) : '0';
 
-    const activeAgents = mockAgents?.filter(a => a.active) || [];
+    const activeAgents = []?.filter(a => a.active) || [];
     const totalAttendances = activeAgents.reduce((sum, a) => sum + (a.leadsCount || 0), 0);
     const responseRate = 87;
 
@@ -146,7 +136,7 @@ const OperationalReport: React.FC = () => {
     // ==========================================
 
     // Filtrar vendas completadas do tenant atual
-    const completedSales = (mockSalesData || []).filter(sale =>
+    const completedSales = ([] || []).filter(sale =>
       sale.status === 'completed' && sale.tenantId === 'tenant-1'
     );
 
@@ -200,7 +190,7 @@ const OperationalReport: React.FC = () => {
       return `${Math.round(minutes / 1440)} dias`;
     };
 
-    const funnelStages = mockPipelineMainStages.map(stage => ({
+    const funnelStages = [].map(stage => ({
       ...stage,
       count: Math.round(stage.count * periodMultiplier)
     }));

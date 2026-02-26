@@ -1,54 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { cn } from '@/lib/utils';
-import { Header } from '@/components/ui/header';
-import { SubHeader } from '@/components/ui/header';
-import { KPICard } from '@/components/ui/kpi-card';
-import { IOSCard } from '@/components/ui/ios-card';
-import { DataTable } from '@/components/ui/data-table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { InlineConversationsPanel } from '@/components/chat/InlineConversationsPanel';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import {
-  mockKPIs,
-  mockLeads,
-  mockLeadsByOrigin,
-  mockSalesByOrigin,
-  mockLeadsByPeriod,
-  mockSalesByPeriod,
-  mockPeriodDetailData,
-  mockAgentRanking,
-  mockAgentRankingAtendimento,
-  mockManagerRanking,
-  mockManagerRankingAtendimento,
-  mockCombinedAgentRanking,
-  mockCombinedManagerRanking,
-  mockCombinedOriginData,
-  mockPipeline,
-  mockPipelineMainStages,
-  mockPipelineExitStages,
-  mockPipelineExitStagesLeft,
-  mockPipelineExitStagesRight,
-  mockManagers,
-  mockAgents,
-} from '@/lib/mock-data';
+
 import { Lead, DashboardFilters } from '@/types';
 import {
   BarChart,
@@ -219,37 +170,37 @@ const Dashboard: React.FC = () => {
   const filteredCombinedAgentRanking = useMemo(() => {
     // If a specific agent is selected, show only that agent
     if (filters.agentId && filters.agentId !== 'all') {
-      return mockCombinedAgentRanking.filter(a => a.agentId === filters.agentId);
+      return [].filter(a => a.agentId === filters.agentId);
     }
 
     // If a manager is selected, show only agents from that manager's team
     if (selectedManager && selectedManager !== 'all') {
-      return mockCombinedAgentRanking.filter(a => a.managerId === selectedManager);
+      return [].filter(a => a.managerId === selectedManager);
     }
 
-    return mockCombinedAgentRanking;
+    return [];
   }, [filters.agentId, selectedManager]);
 
   const filteredCombinedManagerRanking = useMemo(() => {
     // If a manager is selected, show only that manager
     if (selectedManager && selectedManager !== 'all') {
-      return mockCombinedManagerRanking.filter(m => m.managerId === selectedManager);
+      return [].filter(m => m.managerId === selectedManager);
     }
 
     // If an agent is selected, show the manager of that agent
     if (filters.agentId && filters.agentId !== 'all') {
-      const agent = mockAgents.find(a => a.id === filters.agentId);
+      const agent = [].find(a => a.id === filters.agentId);
       if (agent?.managerId) {
-        return mockCombinedManagerRanking.filter(m => m.managerId === agent.managerId);
+        return [].filter(m => m.managerId === agent.managerId);
       }
     }
 
-    return mockCombinedManagerRanking;
+    return [];
   }, [selectedManager, filters.agentId]);
 
   // Legacy filtered ranking data (kept for compatibility if needed)
   const filteredAgentRanking = useMemo(() => {
-    const baseData = mockAgentRanking;
+    const baseData = [];
 
     // If a specific agent is selected, show only that agent
     if (filters.agentId && filters.agentId !== 'all') {
@@ -265,7 +216,7 @@ const Dashboard: React.FC = () => {
   }, [filters.agentId, selectedManager]);
 
   const filteredManagerRanking = useMemo(() => {
-    const baseData = mockManagerRanking;
+    const baseData = [];
 
     // If a manager is selected, show only that manager
     if (selectedManager && selectedManager !== 'all') {
@@ -274,7 +225,7 @@ const Dashboard: React.FC = () => {
 
     // If an agent is selected, show the manager of that agent
     if (filters.agentId && filters.agentId !== 'all') {
-      const agent = mockAgents.find(a => a.id === filters.agentId);
+      const agent = [].find(a => a.id === filters.agentId);
       if (agent?.managerId) {
         return baseData.filter(m => m.managerId === agent.managerId);
       }
@@ -286,7 +237,7 @@ const Dashboard: React.FC = () => {
   // Filtered period data based on selected manager and agent
   const filteredPeriodData = useMemo(() => {
     // Filter the detail data based on selected filters
-    let filteredDetails = mockPeriodDetailData;
+    let filteredDetails = [];
 
     // If a specific agent is selected
     if (filters.agentId && filters.agentId !== 'all') {
@@ -538,8 +489,8 @@ const Dashboard: React.FC = () => {
         });
         return;
       }
-      // Find the lead from mockLeads and open pin modal
-      const lead = mockLeads.find(l => l.id === leadId);
+      // Find the lead from [] and open pin modal
+      const lead = [].find(l => l.id === leadId);
       if (lead) {
         // Convert to TableLead format
         const tableLead: TableLead = {
@@ -698,7 +649,7 @@ const Dashboard: React.FC = () => {
   // Get stage name by ID (for display)
   const getFunnelStageName = (stageId: string | null) => {
     if (!stageId) return '';
-    const stage = mockPipeline.stages.find(s => s.id === stageId);
+    const stage = { stages: [] }.stages.find(s => s.id === stageId);
     return stage?.name || '';
   };
 
@@ -710,8 +661,8 @@ const Dashboard: React.FC = () => {
   };
 
   const filteredAgents = selectedManager && selectedManager !== 'all'
-    ? mockAgents.filter(a => a.managerId === selectedManager)
-    : mockAgents;
+    ? [].filter(a => a.managerId === selectedManager)
+    : [];
 
   const handleApplyFilters = () => {
     // In production, this would call an API with the filters
@@ -768,13 +719,13 @@ const Dashboard: React.FC = () => {
       setFilterOrigin(value);
     } else if (type === 'agent') {
       // Find agent by name and filter
-      const agent = mockAgents.find(a => a.name === value);
+      const agent = [].find(a => a.name === value);
       if (agent) {
         setFilterResponsible(agent.id);
       }
     } else if (type === 'manager') {
       // Find manager by name and filter leads by agents of that manager
-      const manager = mockManagers.find(m => m.name === value);
+      const manager = [].find(m => m.name === value);
       if (manager) {
         setSelectedManager(manager.id);
         setFilters(prev => ({ ...prev, managerId: manager.id }));
@@ -817,12 +768,12 @@ const Dashboard: React.FC = () => {
   // Get stage name by ID
   const getStageName = (stageId?: string) => {
     if (!stageId) return '-';
-    const stage = mockPipeline.stages.find(s => s.id === stageId);
+    const stage = { stages: [] }.stages.find(s => s.id === stageId);
     return stage?.name || '-';
   };
 
   // Filter leads based on all filters
-  const filteredLeads = mockLeads.filter(lead => {
+  const filteredLeads = [].filter(lead => {
     // KPI-based filters
     if (activeKpiFilter === 'Qualificados (IA)' && !lead.qualifiedByAI) return false;
     if (activeKpiFilter === 'Não Qualificados/Roleta' && lead.qualifiedByAI) return false;
@@ -850,7 +801,7 @@ const Dashboard: React.FC = () => {
 
     // Manager filter (from chart click)
     if (activeChartFilter?.type === 'manager') {
-      const manager = mockManagers.find(m => m.name === activeChartFilter.value);
+      const manager = [].find(m => m.name === activeChartFilter.value);
       if (manager && lead.managerId !== manager.id) return false;
     }
 
@@ -860,7 +811,7 @@ const Dashboard: React.FC = () => {
   // Helper to get agent name by ID
   const getAgentName = (agentId?: string) => {
     if (!agentId) return '-';
-    const agent = mockAgents.find(a => a.id === agentId);
+    const agent = [].find(a => a.id === agentId);
     return agent?.name || '-';
   };
 
@@ -913,7 +864,7 @@ const Dashboard: React.FC = () => {
       header: 'Status',
       mobileWidth: 'w-[18%]',
       render: (lead: Lead) => {
-        const stage = mockPipeline.stages.find(s => s.id === lead.stageId);
+        const stage = { stages: [] }.stages.find(s => s.id === lead.stageId);
         return (
           <button
             onClick={(e) => {
@@ -987,7 +938,7 @@ const Dashboard: React.FC = () => {
   ];
 
   // Get unique origins from leads
-  const uniqueOrigins = [...new Set(mockLeads.map(l => l.origin))];
+  const uniqueOrigins = [...new Set([].map(l => l.origin))];
 
   return (
     <div className="min-h-screen bg-background pb-[var(--safe-area-bottom)]">
@@ -1035,7 +986,7 @@ const Dashboard: React.FC = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Gerente</SelectItem>
-                  {mockManagers.map((manager) => (
+                  {[].map((manager) => (
                     <SelectItem key={manager.id} value={manager.id}>
                       {manager.name}
                     </SelectItem>
@@ -1048,7 +999,7 @@ const Dashboard: React.FC = () => {
               value={filters.agentId || 'all'}
               onValueChange={(value) => {
                 if (value && value !== 'all') {
-                  const agent = mockAgents.find(a => a.id === value);
+                  const agent = [].find(a => a.id === value);
                   if (agent?.managerId) {
                     setSelectedManager(agent.managerId);
                     setFilters({ ...filters, agentId: value, managerId: agent.managerId });
@@ -1153,7 +1104,7 @@ const Dashboard: React.FC = () => {
           </div>
           <div className="p-2.5">
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
-              {mockKPIs.map((kpi, index) => {
+              {[].map((kpi, index) => {
                 const isClickable = ['Total de Leads', 'Qualificados (IA)', 'Não Qualificados/Roleta', 'Qualificados/Roleta'].includes(kpi.label);
                 const isActive = activeKpiFilter === kpi.label;
 
@@ -1284,7 +1235,7 @@ const Dashboard: React.FC = () => {
             <div className="h-48">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
-                  data={mockCombinedOriginData}
+                  data={[]}
                   layout="vertical"
                   onClick={(data) => {
                     if (data?.activePayload?.[0]?.payload?.name) {
@@ -1356,7 +1307,7 @@ const Dashboard: React.FC = () => {
               </ResponsiveContainer>
             </div>
             <div className="flex flex-wrap gap-2.5 mt-3 justify-center">
-              {mockCombinedOriginData.map((entry, index) => (
+              {[].map((entry, index) => (
                 <button
                   key={entry.name}
                   onClick={() => handleChartClick('origin', entry.name)}
@@ -2154,7 +2105,7 @@ const Dashboard: React.FC = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todos Status</SelectItem>
-                    {mockPipeline.stages.map(stage => (
+                    {{ stages: [] }.stages.map(stage => (
                       <SelectItem key={stage.id} value={stage.id}>
                         <div className="flex items-center gap-1">
                           <div
@@ -2175,7 +2126,7 @@ const Dashboard: React.FC = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todos</SelectItem>
-                    {mockAgents.map(agent => (
+                    {[].map(agent => (
                       <SelectItem key={agent.id} value={agent.id}>{agent.name}</SelectItem>
                     ))}
                   </SelectContent>

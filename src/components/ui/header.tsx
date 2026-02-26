@@ -1,10 +1,5 @@
 import * as React from "react";
-import { useState, useEffect } from "react";
-import { cn } from "@/lib/utils";
-import { ChevronLeft, Menu, LogOut, User, Settings, ChevronDown, BarChart3, Filter, RefreshCcw, Package, LucideIcon, Bot, MessageSquare, Star, TrendingUp, PhoneCall, Key, Calendar, QrCode, Headphones, Pin, CalendarDays, Users, UserCog, Receipt, Sparkles, Link } from "lucide-react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { Avatar, AvatarFallback, AvatarImage } from "./avatar";
-import { mockTenant, mockUser } from "@/lib/mock-data";
+
 import { getUserAvatarUrl, getCompanySettings } from "@/hooks/useUserProfile";
 import saltLogo from "@/assets/salt-logo.png";
 import {
@@ -186,7 +181,7 @@ const Header = React.forwardRef<HTMLElement, HeaderProps>(
       };
     }, []);
 
-    const initials = mockUser.name
+    const initials = { name: "User", email: "", role: "user" }.name
       .split(' ')
       .map(n => n[0])
       .join('')
@@ -521,7 +516,7 @@ const Header = React.forwardRef<HTMLElement, HeaderProps>(
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center gap-1.5 p-1 rounded-lg hover:bg-secondary/60 transition-all active:scale-95 group">
                     <Avatar className="w-6 h-6 ring-1 ring-transparent group-hover:ring-primary/20 transition-all">
-                      <AvatarImage src={avatarUrl || mockUser.avatar} alt={mockUser.name} />
+                      <AvatarImage src={avatarUrl || { name: "User", email: "", role: "user" }.avatar} alt={{ name: "User", email: "", role: "user" }.name} />
                       <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-medium">
                         {initials}
                       </AvatarFallback>
@@ -531,8 +526,8 @@ const Header = React.forwardRef<HTMLElement, HeaderProps>(
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56 animate-scale-in bg-card border border-border shadow-lg z-50">
                   <div className="px-3 py-2 border-b border-border">
-                    <p className="font-medium text-foreground">{mockUser.name}</p>
-                    <p className="text-xs text-muted-foreground">{mockUser.email}</p>
+                    <p className="font-medium text-foreground">{{ name: "User", email: "", role: "user" }.name}</p>
+                    <p className="text-xs text-muted-foreground">{{ name: "User", email: "", role: "user" }.email}</p>
                   </div>
                   <DropdownMenuItem 
                     className="cursor-pointer gap-2 py-2.5"

@@ -4,19 +4,13 @@
 
 import { useState, useEffect } from 'react';
 import {
-  mockSuperAdminUsers,
-  mockTenants,
-  mockCriticalAlerts,
-  mockSupportTickets,
-  mockDashboardKPIs,
-  mockFinancialKPIs,
   SuperAdminUser,
   Tenant,
   CriticalAlert,
   SupportTicket,
   DashboardKPIs,
   FinancialKPIs,
-} from '@/lib/super-admin-mock-data';
+} from '@/lib/super-admin-types';
 
 // Re-export types for convenience
 export type {
@@ -38,16 +32,16 @@ export type {
   FinancialKPIs,
   ActivityType,
   LastActivity,
-} from '@/lib/super-admin-mock-data';
+} from '@/lib/super-admin-types';
 
 // Store class for Super Admin
 class AdminStore {
-  private superAdminUsers: SuperAdminUser[] = [...mockSuperAdminUsers];
-  private tenants: Tenant[] = [...mockTenants];
-  private alerts: CriticalAlert[] = [...mockCriticalAlerts];
-  private tickets: SupportTicket[] = [...mockSupportTickets];
-  private dashboardKPIs: DashboardKPIs = { ...mockDashboardKPIs };
-  private financialKPIs: FinancialKPIs = { ...mockFinancialKPIs };
+  private superAdminUsers: SuperAdminUser[] = [];
+  private tenants: Tenant[] = [];
+  private alerts: CriticalAlert[] = [];
+  private tickets: SupportTicket[] = [];
+  private dashboardKPIs: DashboardKPIs = { totalTenants: 0, activeTenants: 0, overdueTenants: 0, suspendedTenants: 0, totalActiveUsers: 0, disconnectedWhatsapps: 0, criticalAlerts: 0 };
+  private financialKPIs: FinancialKPIs = { mrr: 0, lastMonthRevenue: 0, currentMonthRevenue: 0, forecastedRevenue: 0, overdueAmount: 0, avgTicket: 0 };
   private listeners: Set<() => void> = new Set();
 
   subscribe(listener: () => void) {

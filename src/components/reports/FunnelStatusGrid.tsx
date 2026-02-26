@@ -1,6 +1,5 @@
 import React from 'react';
-import { Filter } from 'lucide-react';
-import { mockPipelineMainStages, mockPipelineExitStages } from '@/lib/mock-data';
+
 
 // Color config for funnel stages
 const stageColors: Record<string, { bg: string; text: string; border: string }> = {
@@ -35,12 +34,12 @@ const FunnelStatusGrid: React.FC<FunnelStatusGridProps> = ({
 }) => {
   // Combine main stages and exit stages
   const allStages = [
-    ...mockPipelineMainStages.map(stage => ({
+    ...[].map(stage => ({
       ...stage,
       count: Math.round(stage.count * periodMultiplier),
       type: 'main' as const
     })),
-    ...mockPipelineExitStages.map(stage => ({
+    ...[].map(stage => ({
       ...stage,
       count: Math.round(stage.count * periodMultiplier),
       type: 'exit' as const

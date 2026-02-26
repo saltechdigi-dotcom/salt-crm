@@ -257,46 +257,24 @@ export const availablePlans: AvailablePlan[] = [
 export const legacyPlanMapping: any = {};
 // Mock Data (Vazios para limpar tela)
 
-export const mockCurrentSuperAdmin: SuperAdminUser = {
-  id: '',
-  name: '',
-  email: '',
-  role: 'SUPER_ADMIN_MASTER',
-  status: 'ativo',
-  lastLogin: ''
-};
 
-export const mockSuperAdminUsers: SuperAdminUser[] = [];
 
-export const mockFinancialKPIs: FinancialKPIs = {
-  mrr: 0,
-  lastMonthRevenue: 0,
-  currentMonthRevenue: 0,
-  forecastedRevenue: 0,
-  overdueAmount: 0,
-  avgTicket: 0,
-};
 
-export const mockDashboardKPIs: DashboardKPIs = {
-  totalTenants: 0,
-  activeTenants: 0,
-  overdueTenants: 0,
-  suspendedTenants: 0,
-  totalActiveUsers: 0,
-  disconnectedWhatsapps: 0,
-  criticalAlerts: 0,
-};
 
-export const mockSupportTickets: SupportTicket[] = [];
-export const mockCriticalAlerts: CriticalAlert[] = [];
-export const mockTenants: Tenant[] = [];
+
+
+
+
+
+
+
 
 export interface RevenueDataPoint {
   month: string;
   value: number;
 }
 
-export const mockRevenueData: RevenueDataPoint[] = [];
+
 
 export interface ChurnDataPoint {
   month: string;
@@ -304,7 +282,7 @@ export interface ChurnDataPoint {
   churned: number;
 }
 
-export const mockChurnData: ChurnDataPoint[] = [];
+
 
 export interface ActivityLogItem {
   id: string;
@@ -315,4 +293,4 @@ export interface ActivityLogItem {
   type: 'success' | 'warning' | 'error' | 'info';
 }
 
-export const mockActivityLog: ActivityLogItem[] = [];
+
