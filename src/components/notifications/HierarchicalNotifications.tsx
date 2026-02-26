@@ -1,5 +1,26 @@
-import * as React from "react";
-
+import React, { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  Sparkles,
+  Wrench,
+  Rocket,
+  Users,
+  Clock,
+  AlertTriangle,
+  Trophy,
+  MessageCircle,
+  UserPlus,
+  AlertCircle,
+  PauseCircle,
+  DollarSign,
+  CheckCircle2,
+  Bell,
+  ChevronRight,
+  Building2
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { getNotificationsByRole, type Notification, type UserRole } from "@/lib/mock-data";
 import { useSalesStore, type SaleNotification } from "@/stores/sales";
 
 interface HierarchicalNotificationsProps {
@@ -32,7 +53,7 @@ const getNavigationPath = (notif: Notification): { path: string; state?: Record<
   if (notif.category === 'institutional') {
     return { path: '/outros', state: { section: 'suporte' } };
   }
-  
+
   // Baseado no ícone/tipo de alerta
   switch (notif.icon) {
     case 'users':
@@ -58,7 +79,7 @@ const getNavigationPath = (notif: Notification): { path: string; state?: Record<
 };
 
 const HierarchicalNotifications: React.FC<HierarchicalNotificationsProps> = ({
-  userRole = "tenant_admin",
+  userRole = "admin" as UserRole,
   userId = 'agent-1',
   teamId = 'team-1',
   onSaleNotificationClick,
@@ -66,9 +87,9 @@ const HierarchicalNotifications: React.FC<HierarchicalNotificationsProps> = ({
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const salesStore = useSalesStore();
-  
+
   const data = useMemo(() => getNotificationsByRole(userRole, userId, teamId), [userRole, userId, teamId]);
-  
+
   // Notificações de vendas
   const saleNotifications = useMemo(() => {
     if (userRole === 'manager') {
@@ -78,9 +99,9 @@ const HierarchicalNotifications: React.FC<HierarchicalNotificationsProps> = ({
     }
     return [];
   }, [userRole, userId, salesStore]);
-  
+
   const unreadSaleNotifications = saleNotifications.filter(n => !n.read);
-  
+
   // Calcula badge baseado no nível hierárquico
   const badgeCount = useMemo(() => {
     const saleCount = unreadSaleNotifications.length;
@@ -95,7 +116,7 @@ const HierarchicalNotifications: React.FC<HierarchicalNotificationsProps> = ({
         return 0;
     }
   }, [userRole, data, unreadSaleNotifications.length]);
-  
+
   const handleSaleNotificationClick = (notif: SaleNotification) => {
     salesStore.markNotificationAsRead(notif.id);
     setIsOpen(false);
@@ -103,7 +124,7 @@ const HierarchicalNotifications: React.FC<HierarchicalNotificationsProps> = ({
       onSaleNotificationClick(notif.saleId);
     }
   };
-  
+
   const renderSaleNotificationItem = (notif: SaleNotification, index: number) => (
     <div
       key={notif.id}
@@ -117,11 +138,11 @@ const HierarchicalNotifications: React.FC<HierarchicalNotificationsProps> = ({
       <div className="flex gap-2.5 items-start">
         <div className={cn(
           "w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0",
-          notif.type === 'sale_pending_validation' 
+          notif.type === 'sale_pending_validation'
             ? "bg-amber-500/10 text-amber-600"
             : notif.type === 'sale_validated'
-            ? "bg-emerald-500/10 text-emerald-600"
-            : "bg-destructive/10 text-destructive"
+              ? "bg-emerald-500/10 text-emerald-600"
+              : "bg-destructive/10 text-destructive"
         )}>
           {notif.type === 'sale_pending_validation' ? (
             <DollarSign className="w-3.5 h-3.5" />
@@ -174,7 +195,7 @@ const HierarchicalNotifications: React.FC<HierarchicalNotificationsProps> = ({
     const diffMins = Math.floor(diffMs / (1000 * 60));
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
     const diffDays = Math.floor(diffHours / 24);
-    
+
     if (diffMins < 5) return 'Agora';
     if (diffMins < 60) return `${diffMins}min`;
     if (diffHours < 24) return `${diffHours}h`;
@@ -252,7 +273,7 @@ const HierarchicalNotifications: React.FC<HierarchicalNotificationsProps> = ({
       )}
 
       {/* Total de mensagens não lidas */}
-      <div 
+      <div
         className="px-3 py-2.5 bg-primary/5 border-b border-border/30 cursor-pointer hover:bg-primary/10 transition-colors"
         onClick={() => { setIsOpen(false); navigate('/funil'); }}
       >
@@ -276,7 +297,7 @@ const HierarchicalNotifications: React.FC<HierarchicalNotificationsProps> = ({
           Por Time
         </p>
         {data.teamUnreadMessages.map((team) => (
-          <div 
+          <div
             key={team.teamId}
             onClick={() => handleTeamClick(team.teamId)}
             className="flex items-center justify-between py-1.5 hover:bg-secondary/30 rounded-md px-1.5 -mx-1.5 cursor-pointer transition-colors"
@@ -322,7 +343,7 @@ const HierarchicalNotifications: React.FC<HierarchicalNotificationsProps> = ({
       )}
 
       {/* Total de mensagens do time */}
-      <div 
+      <div
         className="px-3 py-2.5 bg-primary/5 border-b border-border/30 cursor-pointer hover:bg-primary/10 transition-colors"
         onClick={() => { setIsOpen(false); navigate('/funil'); }}
       >
@@ -355,7 +376,7 @@ const HierarchicalNotifications: React.FC<HierarchicalNotificationsProps> = ({
   const renderAgentView = () => (
     <>
       {/* Minhas mensagens não lidas */}
-      <div 
+      <div
         className="px-3 py-2.5 bg-primary/5 border-b border-border/30 cursor-pointer hover:bg-primary/10 transition-colors"
         onClick={() => { setIsOpen(false); navigate('/funil'); }}
       >
@@ -405,9 +426,9 @@ const HierarchicalNotifications: React.FC<HierarchicalNotificationsProps> = ({
           )}
         </button>
       </PopoverTrigger>
-      <PopoverContent 
-        className="w-80 p-0 rounded-xl shadow-lg border-border/50" 
-        align="center" 
+      <PopoverContent
+        className="w-80 p-0 rounded-xl shadow-lg border-border/50"
+        align="center"
         sideOffset={8}
       >
         {/* Header */}
@@ -432,7 +453,7 @@ const HierarchicalNotifications: React.FC<HierarchicalNotificationsProps> = ({
 
         {/* Footer */}
         <div className="px-3 py-2 border-t border-border/30">
-          <button 
+          <button
             onClick={handleViewAll}
             className="w-full text-center text-[11px] text-primary font-medium py-1.5 hover:bg-secondary/40 rounded-lg transition-colors"
           >
