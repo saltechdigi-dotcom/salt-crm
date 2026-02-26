@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
   BarChart3, Filter, RefreshCcw, Bot, MessageSquare, Star, TrendingUp,
   PhoneCall, Users, Package, UserCog, Settings, QrCode, Key, Calendar,
-  Receipt, Headphones, Sparkles, ChevronLeft, Menu, Pin, CalendarDays,
+  Receipt, Headphones, Sparkles as SparklesIcon, ChevronLeft, Menu, Pin, CalendarDays,
   User, LogOut, LucideIcon, ChevronDown, Link as LinkIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -110,7 +110,7 @@ const configItems: ConfigItemConfig[] = [
   { id: 'fatura', title: 'Fatura', icon: Receipt, iconColor: 'bg-[#FF9500]', section: 'fatura', category: 'salt' },
   { id: 'suporte', title: 'Suporte SALT', icon: Headphones, iconColor: 'bg-[#E96A6A]', section: 'suporte', category: 'salt' },
   { id: 'chamados', title: 'Central de Chamados', icon: MessageSquare, iconColor: 'bg-[#5B8DEF]', section: 'chamados', category: 'salt' },
-  { id: 'servicos', title: 'Serviços & Expansões', icon: Sparkles, iconColor: 'bg-[#4FC3B5]', section: 'servicos', category: 'salt' },
+  { id: 'servicos', title: 'Serviços & Expansões', icon: SparklesIcon, iconColor: 'bg-[#4FC3B5]', section: 'servicos', category: 'salt' },
 ];
 
 interface HeaderProps extends React.HTMLAttributes<HTMLElement> {
