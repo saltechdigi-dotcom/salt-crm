@@ -39,6 +39,7 @@ import { NpsDetailModal, NpsCategory } from '@/components/nps/NpsDetailModal';
 import { ChatDialog } from '@/components/chat/ChatDialog';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { DateRange } from 'react-day-picker';
+import { Header } from '@/components/ui/header';
 import api from '@/lib/api';
 
 // Interface para leads da tabela (igual ao Funil)
