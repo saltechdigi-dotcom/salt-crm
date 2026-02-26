@@ -1529,7 +1529,7 @@ const TenantDetailModal: React.FC<{
                   </tr>
                 </thead>
                 <tbody>
-                  {tenant.users.map((user) => (
+                  {tenant.users?.map((user) => (
                     <tr key={user.id} className="border-t border-border/50">
                       <td className="p-3 text-xs font-medium">{user.name}</td>
                       <td className="p-3 text-xs text-muted-foreground">{user.email}</td>
