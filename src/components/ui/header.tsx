@@ -3,9 +3,10 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
   BarChart3, Filter, RefreshCcw, Bot, MessageSquare, Star, TrendingUp,
   PhoneCall, Users, Package, UserCog, Settings, QrCode, Key, Calendar,
-  Receipt, Headphones, Sparkles as SparklesIcon, ChevronLeft, Menu, Pin, CalendarDays,
+  Receipt, Headphones, ChevronLeft, Menu, Pin, CalendarDays,
   User, LogOut, LucideIcon, ChevronDown, Link as LinkIcon
 } from "lucide-react";
+import SparklesIcon from "lucide-react/dist/esm/icons/sparkles";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getUserAvatarUrl, getCompanySettings } from "@/hooks/useUserProfile";
