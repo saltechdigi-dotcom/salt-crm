@@ -1638,29 +1638,29 @@ const TenantDetailModal: React.FC<{
             <div className="grid grid-cols-2 gap-4">
               <div className="p-4 rounded-xl border bg-card">
                 <span className="text-[10px] uppercase tracking-widest text-muted-foreground/70">Usuários Ativos Hoje</span>
-                <p className="text-2xl font-semibold mt-1">{tenant.usageStats.activeToday}</p>
+                <p className="text-2xl font-semibold mt-1">{tenant.usageStats?.activeToday || 0}</p>
               </div>
               <div className="p-4 rounded-xl border bg-card">
                 <span className="text-[10px] uppercase tracking-widest text-muted-foreground/70">Últimos 7 Dias</span>
-                <p className="text-2xl font-semibold mt-1">{tenant.usageStats.last7Days}</p>
+                <p className="text-2xl font-semibold mt-1">{tenant.usageStats?.last7Days || 0}</p>
               </div>
               <div className="p-4 rounded-xl border bg-card">
                 <span className="text-[10px] uppercase tracking-widest text-muted-foreground/70">Últimos 30 Dias</span>
-                <p className="text-2xl font-semibold mt-1">{tenant.usageStats.last30Days}</p>
+                <p className="text-2xl font-semibold mt-1">{tenant.usageStats?.last30Days || 0}</p>
               </div>
               <div className="p-4 rounded-xl border bg-card">
                 <span className="text-[10px] uppercase tracking-widest text-muted-foreground/70">Frequência Média</span>
-                <p className="text-lg font-semibold mt-1">{tenant.usageStats.avgFrequency}</p>
+                <p className="text-lg font-semibold mt-1">{tenant.usageStats?.avgFrequency || '-'}</p>
               </div>
             </div>
             <div className="p-4 rounded-xl border bg-card">
               <span className="text-[10px] uppercase tracking-widest text-muted-foreground/70">Risco de Churn</span>
               <div className="mt-2">
                 <Badge
-                  variant={tenant.usageStats.churnRisk === 'baixo' ? 'default' : tenant.usageStats.churnRisk === 'medio' ? 'secondary' : 'destructive'}
+                  variant={tenant.usageStats?.churnRisk === 'baixo' ? 'default' : tenant.usageStats?.churnRisk === 'medio' ? 'secondary' : 'destructive'}
                   className="text-xs capitalize"
                 >
-                  {tenant.usageStats.churnRisk}
+                  {tenant.usageStats?.churnRisk || 'Desconhecido'}
                 </Badge>
               </div>
             </div>
