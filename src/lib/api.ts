@@ -1,4 +1,4 @@
-import axios from 'axios';
+﻿import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
@@ -14,7 +14,7 @@ api.interceptors.request.use(
     (config) => {
         const url = config.url || '';
         // Não envia Authorization em rotas públicas de auth
-        const isAuthRoute = url.includes('/auth/login') || url.includes('/auth/superadmin/login') || url.includes('/auth/refresh');
+        const isAuthRoute = url.includes('/auth/login') || url.includes('/auth/superadmin/login') || url.includes('/auth/refresh') || url.includes('/auth/superadmin/refresh');
         if (!isAuthRoute) {
             const token = localStorage.getItem('salt_token');
             if (token) {
@@ -36,18 +36,20 @@ api.interceptors.response.use(
         if (error.response?.status === 401 && !originalRequest._retry) {
             originalRequest._retry = true;
 
-            try {
-                const refreshToken = localStorage.getItem('salt_refresh_token');
-                if (!refreshToken) {
-                    // No refresh token, force logout
-                    handleLogout();
-                    return Promise.reject(error);
-                }
+            const refreshToken = localStorage.getItem('salt_refresh_token');
+            if (!refreshToken) {
+                // No refresh token, force logout
+                handleLogout();
+                return Promise.reject(error);
+            }
 
-                // Try to refresh the token
-                const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, {
-                    refresh_token: refreshToken,
-                });
+            const tryRefresh = async (path: string) => {
+                return axios.post(`${API_BASE_URL}${path}`, { refresh_token: refreshToken });
+            };
+
+            try {
+                // Primeiro tenta refresh padrão (tenant)
+                const { data } = await tryRefresh('/auth/refresh');
 
                 // Store new tokens (API returns snake_case)
                 localStorage.setItem('salt_token', data.access_token);
@@ -57,8 +59,17 @@ api.interceptors.response.use(
                 originalRequest.headers.Authorization = `Bearer ${data.access_token}`;
                 return api(originalRequest);
             } catch (refreshError) {
-                handleLogout();
-                return Promise.reject(refreshError);
+                try {
+                    // Fallback para superadmin
+                    const { data } = await tryRefresh('/auth/superadmin/refresh');
+                    localStorage.setItem('salt_token', data.access_token);
+                    localStorage.setItem('salt_refresh_token', data.refresh_token);
+                    originalRequest.headers.Authorization = `Bearer ${data.access_token}`;
+                    return api(originalRequest);
+                } catch (refreshSuperError) {
+                    handleLogout();
+                    return Promise.reject(refreshSuperError);
+                }
             }
         }
 
@@ -82,3 +93,6 @@ export const whatsappApi = {
 };
 
 export default api;
+
+
+
