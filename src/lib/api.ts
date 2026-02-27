@@ -30,7 +30,12 @@ api.interceptors.request.use(
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
-        const originalRequest = error.config;
+        const originalRequest: any = error.config || {};
+
+        // Permitir que algumas requisições pulem o fluxo de refresh (ex.: /auth/me para cair no fallback superadmin)
+        if (originalRequest.skipAuthRefresh) {
+            return Promise.reject(error);
+        }
 
         // If 401 and not already retrying
         if (error.response?.status === 401 && !originalRequest._retry) {

@@ -167,13 +167,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             set({ user: data, isAuthenticated: true });
         };
 
-        const tryMe = async (path: string) => {
-            const { data } = await api.get(path);
+        const tryMe = async (path: string, skipRefresh = false) => {
+            const { data } = await api.get(path, skipRefresh ? { skipAuthRefresh: true } as any : undefined);
             return data;
         };
 
         try {
-            const data = await tryMe('/auth/me');
+            // Primeiro tenta rota de tenant sem acionar refresh (para cair no fallback superadmin rapidamente)
+            const data = await tryMe('/auth/me', true);
             setSession(data);
             return;
         } catch (err: any) {
