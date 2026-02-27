@@ -44,6 +44,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         let lastError: any = null;
 
         const tryLogin = async (url: string) => {
+            // evitar token stale no interceptor
+            localStorage.removeItem('salt_token');
+            localStorage.removeItem('salt_refresh_token');
             const res = await api.post(url, { email, password });
             return res.data;
         };

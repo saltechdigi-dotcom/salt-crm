@@ -12,9 +12,14 @@ export const api = axios.create({
 // Request interceptor - add JWT token
 api.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('salt_token');
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
+        const url = config.url || '';
+        // Não envia Authorization em rotas públicas de auth
+        const isAuthRoute = url.includes('/auth/login') || url.includes('/auth/superadmin/login') || url.includes('/auth/refresh');
+        if (!isAuthRoute) {
+            const token = localStorage.getItem('salt_token');
+            if (token) {
+                config.headers.Authorization = `Bearer ${token}`;
+            }
         }
         return config;
     },
