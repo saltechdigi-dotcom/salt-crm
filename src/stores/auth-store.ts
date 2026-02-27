@@ -149,12 +149,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     },
 
     getMe: async () => {
-        try {
-            const { data } = await api.get('/auth/me');
-
+        const setSession = (data: any) => {
             const frontendRole = roleMap[data.role] || (data.role === 'master' ? 'SUPER_ADMIN_MASTER' : 'TENANT_VENDEDOR');
 
-            // Keep session in sync
             localStorage.setItem('salt_session', JSON.stringify({
                 email: data.email,
                 loggedIn: true,
@@ -168,12 +165,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             }
 
             set({ user: data, isAuthenticated: true });
-        } catch {
-            set({ user: null, isAuthenticated: false });
-            localStorage.removeItem('salt_token');
-            localStorage.removeItem('salt_refresh_token');
-            localStorage.removeItem('salt_session');
-            socketClient.disconnect();
+        };
+
+        const tryMe = async (path: string) => {
+            const { data } = await api.get(path);
+            return data;
+        };
+
+        try {
+            const data = await tryMe('/auth/me');
+            setSession(data);
+            return;
+        } catch (err: any) {
+            try {
+                const data = await tryMe('/auth/superadmin/me');
+                setSession(data);
+                return;
+            } catch {
+                set({ user: null, isAuthenticated: false });
+                localStorage.removeItem('salt_token');
+                localStorage.removeItem('salt_refresh_token');
+                localStorage.removeItem('salt_session');
+                socketClient.disconnect();
+            }
         }
     },
 
