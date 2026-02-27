@@ -32,7 +32,7 @@ api.interceptors.response.use(
     async (error) => {
         const originalRequest: any = error.config || {};
 
-        // Permitir que algumas requisições pulem o fluxo de refresh (ex.: /auth/me para cair no fallback superadmin)
+        // Permitir que algumas requisições pulem o fluxo de refresh (ex.: getMe)
         if (originalRequest.skipAuthRefresh) {
             return Promise.reject(error);
         }
@@ -43,38 +43,25 @@ api.interceptors.response.use(
 
             const refreshToken = localStorage.getItem('salt_refresh_token');
             if (!refreshToken) {
-                // No refresh token, force logout
                 handleLogout();
                 return Promise.reject(error);
             }
 
-            const tryRefresh = async (path: string) => {
-                return axios.post(`${API_BASE_URL}${path}`, { refresh_token: refreshToken });
-            };
+            // Use the stored user type to call the CORRECT refresh endpoint — no guessing
+            const userType = localStorage.getItem('salt_user_type');
+            const refreshPath = userType === 'superadmin' ? '/auth/superadmin/refresh' : '/auth/refresh';
 
             try {
-                // Primeiro tenta refresh padrão (tenant)
-                const { data } = await tryRefresh('/auth/refresh');
+                const { data } = await axios.post(`${API_BASE_URL}${refreshPath}`, { refresh_token: refreshToken });
 
-                // Store new tokens (API returns snake_case)
                 localStorage.setItem('salt_token', data.access_token);
                 localStorage.setItem('salt_refresh_token', data.refresh_token);
 
-                // Retry original request with new token
                 originalRequest.headers.Authorization = `Bearer ${data.access_token}`;
                 return api(originalRequest);
             } catch (refreshError) {
-                try {
-                    // Fallback para superadmin
-                    const { data } = await tryRefresh('/auth/superadmin/refresh');
-                    localStorage.setItem('salt_token', data.access_token);
-                    localStorage.setItem('salt_refresh_token', data.refresh_token);
-                    originalRequest.headers.Authorization = `Bearer ${data.access_token}`;
-                    return api(originalRequest);
-                } catch (refreshSuperError) {
-                    handleLogout();
-                    return Promise.reject(refreshSuperError);
-                }
+                handleLogout();
+                return Promise.reject(refreshError);
             }
         }
 
@@ -86,6 +73,7 @@ function handleLogout() {
     localStorage.removeItem('salt_token');
     localStorage.removeItem('salt_refresh_token');
     localStorage.removeItem('salt_session');
+    localStorage.removeItem('salt_user_type');
     window.location.href = '/login';
 }
 
@@ -98,6 +86,3 @@ export const whatsappApi = {
 };
 
 export default api;
-
-
-

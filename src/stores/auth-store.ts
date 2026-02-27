@@ -11,6 +11,16 @@ const roleMap: Record<string, string> = {
     super_admin: 'SUPER_ADMIN_MASTER',
 };
 
+// Helper: determine if a backend role is super-admin
+function isSuperAdminRole(role: string): boolean {
+    return role === 'master' || role === 'super_admin';
+}
+
+// Helper: get the stored user type ('superadmin' | 'tenant' | null)
+export function getSaltUserType(): 'superadmin' | 'tenant' | null {
+    return localStorage.getItem('salt_user_type') as any;
+}
+
 interface AuthUser {
     id: string;
     name: string;
@@ -41,36 +51,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     login: async (email: string, password: string) => {
         set({ isLoading: true, error: null });
 
-        let lastError: any = null;
+        // Clean stale tokens
+        localStorage.removeItem('salt_token');
+        localStorage.removeItem('salt_refresh_token');
+        localStorage.removeItem('salt_user_type');
 
-        const tryLogin = async (url: string) => {
-            // evitar token stale no interceptor
-            localStorage.removeItem('salt_token');
-            localStorage.removeItem('salt_refresh_token');
-            const res = await api.post(url, { email, password });
-            return res.data;
-        };
+        const processLogin = (data: any) => {
+            const user = data.user;
+            const userType = isSuperAdminRole(user.role) ? 'superadmin' : 'tenant';
+            const frontendRole = roleMap[user.role] || (isSuperAdminRole(user.role) ? 'SUPER_ADMIN_MASTER' : 'TENANT_VENDEDOR');
 
-        try {
-            // Primeiro tenta login padrão
-            let data = await tryLogin('/auth/login');
-
-            // Se não veio user ou backend retornou formato inesperado, tenta superadmin
-            if (!data?.user) {
-                data = await tryLogin('/auth/superadmin/login');
-            }
-
-            // Store tokens (API returns snake_case)
+            // Store tokens
             localStorage.setItem('salt_token', data.access_token);
             localStorage.setItem('salt_refresh_token', data.refresh_token);
+            // KEY: store user type so getMe() and interceptor know which endpoints to use
+            localStorage.setItem('salt_user_type', userType);
 
-            // Connect to real-time socket
+            // Connect socket
             socketClient.connect(data.access_token);
 
-            const user = data.user;
-            const frontendRole = roleMap[user.role] || (user.role === 'master' ? 'SUPER_ADMIN_MASTER' : 'TENANT_VENDEDOR');
-
-            // Store session for backward compatibility with useUserRole
+            // Store session for useUserRole hook
             localStorage.setItem('salt_session', JSON.stringify({
                 email: user.email,
                 loggedIn: true,
@@ -85,53 +85,40 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                 error: null,
             });
 
-            // Determine redirect based on role
-            const redirectTo = (user.role === 'master' || user.role === 'super_admin') ? '/super-admin' : '/home';
+            const redirectTo = userType === 'superadmin' ? '/super-admin' : '/home';
             return { redirectTo };
+        };
 
-        } catch (error: any) {
-            lastError = error;
-            // Se falhou o login padrão, tenta superadmin como fallback
-            try {
-                const data = await tryLogin('/auth/superadmin/login');
-
-                localStorage.setItem('salt_token', data.access_token);
-                localStorage.setItem('salt_refresh_token', data.refresh_token);
-                socketClient.connect(data.access_token);
-
-                const user = data.user;
-                const frontendRole = roleMap[user.role] || (user.role === 'master' ? 'SUPER_ADMIN_MASTER' : 'TENANT_VENDEDOR');
-                localStorage.setItem('salt_session', JSON.stringify({
-                    email: user.email,
-                    loggedIn: true,
-                    role: frontendRole,
-                    name: user.name,
-                }));
-
-                set({
-                    user,
-                    isAuthenticated: true,
-                    isLoading: false,
-                    error: null,
-                });
-
-                const redirectTo = (user.role === 'master' || user.role === 'super_admin') ? '/super-admin' : '/home';
-                return { redirectTo };
-            } catch (fallbackError: any) {
-                const message = fallbackError?.response?.data?.message
-                    || lastError?.response?.data?.message
-                    || 'Erro ao fazer login. Verifique suas credenciais.';
-
-                // limpa qualquer token/sessão residual para evitar redirecionar por sessão antiga
-                localStorage.removeItem('salt_token');
-                localStorage.removeItem('salt_refresh_token');
-                localStorage.removeItem('salt_session');
-                socketClient.disconnect();
-
-                set({ isLoading: false, isAuthenticated: false, user: null, error: message });
-                throw new Error(message);
+        // Try tenant login first
+        try {
+            const res = await api.post('/auth/login', { email, password }, { skipAuthRefresh: true } as any);
+            if (res.data?.user) {
+                return processLogin(res.data);
             }
+        } catch {
+            // Tenant login failed — try super-admin below
         }
+
+        // Try super-admin login
+        try {
+            const res = await api.post('/auth/superadmin/login', { email, password }, { skipAuthRefresh: true } as any);
+            if (res.data?.user) {
+                return processLogin(res.data);
+            }
+        } catch (err: any) {
+            // Both failed
+        }
+
+        // Both failed — clean up and throw
+        localStorage.removeItem('salt_token');
+        localStorage.removeItem('salt_refresh_token');
+        localStorage.removeItem('salt_session');
+        localStorage.removeItem('salt_user_type');
+        socketClient.disconnect();
+
+        const message = 'Erro ao fazer login. Verifique suas credenciais.';
+        set({ isLoading: false, isAuthenticated: false, user: null, error: message });
+        throw new Error(message);
     },
 
     logout: async () => {
@@ -143,13 +130,27 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             localStorage.removeItem('salt_token');
             localStorage.removeItem('salt_refresh_token');
             localStorage.removeItem('salt_session');
+            localStorage.removeItem('salt_user_type');
             socketClient.disconnect();
             set({ user: null, isAuthenticated: false });
         }
     },
 
     getMe: async () => {
-        const setSession = (data: any) => {
+        const userType = getSaltUserType();
+        const token = localStorage.getItem('salt_token');
+
+        if (!token) {
+            set({ user: null, isAuthenticated: false });
+            return;
+        }
+
+        // Use the CORRECT endpoint based on stored user type — no fallback, no 401 surprises
+        const mePath = userType === 'superadmin' ? '/auth/superadmin/me' : '/auth/me';
+
+        try {
+            const { data } = await api.get(mePath, { skipAuthRefresh: true } as any);
+
             const frontendRole = roleMap[data.role] || (data.role === 'master' ? 'SUPER_ADMIN_MASTER' : 'TENANT_VENDEDOR');
 
             localStorage.setItem('salt_session', JSON.stringify({
@@ -159,48 +160,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                 name: data.name,
             }));
 
-            const token = localStorage.getItem('salt_token');
-            if (token) {
-                socketClient.connect(token);
-            }
-
+            socketClient.connect(token);
             set({ user: data, isAuthenticated: true });
-        };
-
-        const tryMe = async (path: string) => {
-            // Always skip auth refresh for /me calls — we handle fallback manually
-            const { data } = await api.get(path, { skipAuthRefresh: true } as any);
-            return data;
-        };
-
-        try {
-            // Primeiro tenta rota de tenant
-            const data = await tryMe('/auth/me');
-            setSession(data);
-            return;
-        } catch (err: any) {
-            try {
-                // Fallback para superadmin — ALSO skip auth refresh to prevent interceptor from force-logging out
-                const data = await tryMe('/auth/superadmin/me');
-                setSession(data);
-                return;
-            } catch {
-                // Only clear session if no token exists (avoid clearing a valid session during transient network errors)
-                const token = localStorage.getItem('salt_token');
-                if (!token) {
-                    set({ user: null, isAuthenticated: false });
-                    localStorage.removeItem('salt_session');
-                    socketClient.disconnect();
-                } else {
-                    // Token exists but both /me endpoints failed — keep isAuthenticated based on session
-                    const session = localStorage.getItem('salt_session');
-                    if (!session) {
-                        set({ user: null, isAuthenticated: false });
-                        socketClient.disconnect();
-                    }
-                    // If session exists, don't clear it — let user continue and RoleGuard will handle
-                }
-            }
+        } catch {
+            // Only clear if the single correct endpoint failed
+            set({ user: null, isAuthenticated: false });
+            localStorage.removeItem('salt_token');
+            localStorage.removeItem('salt_refresh_token');
+            localStorage.removeItem('salt_session');
+            localStorage.removeItem('salt_user_type');
+            socketClient.disconnect();
         }
     },
 
