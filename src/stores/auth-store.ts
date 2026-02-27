@@ -42,21 +42,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({ isLoading: true, error: null });
 
         try {
-            let data;
+            // 1) tenta login padrão
+            let res = await api.post('/auth/login', { email, password });
+            let data = res.data;
 
-            // Try SuperAdmin login first if it looks like the admin email
-            if (email === 'admin@saltdigital.com.br') {
-                try {
-                    const res = await api.post('/auth/superadmin/login', { email, password });
-                    data = res.data;
-                } catch (e) {
-                    // Fallback to normal login just in case
-                    const res = await api.post('/auth/login', { email, password });
-                    data = res.data;
-                }
-            } else {
-                // Normal login
-                const res = await api.post('/auth/login', { email, password });
+            // fallback automático: se não veio user ou se o backend não reconhece, tenta superadmin
+            if (!data?.user) {
+                res = await api.post('/auth/superadmin/login', { email, password });
                 data = res.data;
             }
 
@@ -90,7 +82,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             return { redirectTo };
 
         } catch (error: any) {
-            const message = error.response?.data?.message || 'Erro ao fazer login. Verifique suas credenciais.';
+            const message = error?.response?.data?.message || 'Erro ao fazer login. Verifique suas credenciais.';
             set({ isLoading: false, error: message });
             throw new Error(message);
         }

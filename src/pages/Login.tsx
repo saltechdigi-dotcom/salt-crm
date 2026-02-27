@@ -4,46 +4,34 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader } from '@/components/ui/loader';
-import { useToast } from '@/hooks/use-toast';
-import { useInlineNotification } from '@/contexts/InlineNotificationContext';
 import { useAuthStore } from '@/stores/auth-store';
 import { Mail, Lock, ArrowRight } from 'lucide-react';
 import saltLogo from '@/assets/salt-logo.png';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const { showNotification } = useInlineNotification();
   const { login, isLoading: authLoading } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!email || !password) {
-      toast({
-        title: 'Campos obrigatórios',
-        description: 'Por favor, preencha todos os campos.',
-        variant: 'destructive',
-      });
+      setFormError('Preencha e-mail e senha para continuar.');
       return;
     }
 
+    setFormError(null);
     setIsLoading(true);
 
     try {
       const { redirectTo } = await login(email, password);
-
-      showNotification('Login realizado com sucesso', 'success');
       navigate(redirectTo);
     } catch (error: any) {
-      toast({
-        title: 'Acesso negado',
-        description: error.message || 'Credenciais inválidas. Verifique seu e-mail e senha.',
-        variant: 'destructive',
-      });
+      setFormError(error.message || 'Credenciais inválidas. Verifique seu e-mail e senha.');
     } finally {
       setIsLoading(false);
     }
@@ -96,6 +84,11 @@ const Login: React.FC = () => {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-5 mt-4">
+          {formError && (
+            <div className="bg-destructive/10 border border-destructive/30 text-destructive text-sm rounded-lg px-3 py-2">
+              {formError}
+            </div>
+          )}
           <div className="space-y-1.5">
             <Label htmlFor="email" className="ios-label text-xs font-medium text-muted-foreground">
               E-mail
