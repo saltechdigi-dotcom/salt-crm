@@ -41,15 +41,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     login: async (email: string, password: string) => {
         set({ isLoading: true, error: null });
 
-        try {
-            // 1) tenta login padrão
-            let res = await api.post('/auth/login', { email, password });
-            let data = res.data;
+        let lastError: any = null;
 
-            // fallback automático: se não veio user ou se o backend não reconhece, tenta superadmin
+        const tryLogin = async (url: string) => {
+            const res = await api.post(url, { email, password });
+            return res.data;
+        };
+
+        try {
+            // Primeiro tenta login padrão
+            let data = await tryLogin('/auth/login');
+
+            // Se não veio user ou backend retornou formato inesperado, tenta superadmin
             if (!data?.user) {
-                res = await api.post('/auth/superadmin/login', { email, password });
-                data = res.data;
+                data = await tryLogin('/auth/superadmin/login');
             }
 
             // Store tokens (API returns snake_case)
@@ -82,9 +87,47 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             return { redirectTo };
 
         } catch (error: any) {
-            const message = error?.response?.data?.message || 'Erro ao fazer login. Verifique suas credenciais.';
-            set({ isLoading: false, error: message });
-            throw new Error(message);
+            lastError = error;
+            // Se falhou o login padrão, tenta superadmin como fallback
+            try {
+                const data = await tryLogin('/auth/superadmin/login');
+
+                localStorage.setItem('salt_token', data.access_token);
+                localStorage.setItem('salt_refresh_token', data.refresh_token);
+                socketClient.connect(data.access_token);
+
+                const user = data.user;
+                const frontendRole = roleMap[user.role] || (user.role === 'master' ? 'SUPER_ADMIN_MASTER' : 'TENANT_VENDEDOR');
+                localStorage.setItem('salt_session', JSON.stringify({
+                    email: user.email,
+                    loggedIn: true,
+                    role: frontendRole,
+                    name: user.name,
+                }));
+
+                set({
+                    user,
+                    isAuthenticated: true,
+                    isLoading: false,
+                    error: null,
+                });
+
+                const redirectTo = (user.role === 'master' || user.role === 'super_admin') ? '/super-admin' : '/home';
+                return { redirectTo };
+            } catch (fallbackError: any) {
+                const message = fallbackError?.response?.data?.message
+                    || lastError?.response?.data?.message
+                    || 'Erro ao fazer login. Verifique suas credenciais.';
+
+                // limpa qualquer token/sessão residual para evitar redirecionar por sessão antiga
+                localStorage.removeItem('salt_token');
+                localStorage.removeItem('salt_refresh_token');
+                localStorage.removeItem('salt_session');
+                socketClient.disconnect();
+
+                set({ isLoading: false, isAuthenticated: false, user: null, error: message });
+                throw new Error(message);
+            }
         }
     },
 
