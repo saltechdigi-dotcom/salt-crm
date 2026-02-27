@@ -1,10 +1,27 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { useToast } from '@/hooks/use-toast';
 import { useUserProfile, useCompanySettings } from '@/hooks/useUserProfile';
 import { createSupportTicketFromForm, createServiceRequestTicket, createIALigacaoTicket, createWebhookIntegrationTicket, createUpgradeRequestTicket, supportTicketsApi } from '@/stores/support';
 import { whatsappApi, api } from '@/lib/api';
 import { useLabelsStore, Label as LabelType } from '@/stores/labels';
+import { Header, SubHeader } from '@/components/ui/header';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { IOSCard, IOSSection, IOSSectionItem } from '@/components/ui/ios-card';
+import { ImageCropper } from '@/components/ui/image-cropper';
+import { Badge } from '@/components/ui/badge';
+import { ListsSection } from '@/components/lists/ListsSection';
+import { ClientsSection } from '@/components/clients/ClientsSection';
+import { EquipesSection } from '@/components/equipes/EquipesSection';
+import { UsuariosSection } from '@/components/usuarios/UsuariosSection';
+import { EtiquetasSection } from '@/components/etiquetas/EtiquetasSection';
+import { InventorySection } from '@/components/inventory/InventorySection';
 import {
   Bot,
   MessageSquare,
