@@ -2592,14 +2592,25 @@ const SuperAdmin: React.FC = () => {
       const res = await api.post(`/superadmin/impersonate/${tenant.id}`);
       const data = res.data;
 
+      const companySettings = {
+        name: data?.tenant?.name || tenant.name,
+        logoUrl: data?.tenant?.logoUrl || null,
+        primaryColor: data?.tenant?.primaryColor || '#5B8DEF',
+      };
+
       localStorage.setItem('salt_token', data.access_token);
       localStorage.setItem('salt_refresh_token', data.refresh_token);
       localStorage.setItem('salt_session', JSON.stringify({
+        id: data?.user?.id || data?.user?.email || 'current-user',
         email: data.user.email,
         loggedIn: true,
         role: data.user.role,
         name: data.user.name,
+        tenantId: tenant.id,
+        tenantName: tenant.name,
       }));
+      localStorage.setItem('salt_company_settings', JSON.stringify(companySettings));
+      localStorage.removeItem('salt_user_profile');
 
       window.location.href = '/home';
     } catch (error: any) {

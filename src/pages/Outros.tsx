@@ -1,12 +1,13 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { useToast } from '@/hooks/use-toast';
 import { useUserProfile, useCompanySettings } from '@/hooks/useUserProfile';
 import { createSupportTicketFromForm, createServiceRequestTicket, createIALigacaoTicket, createWebhookIntegrationTicket, createUpgradeRequestTicket, supportTicketsApi } from '@/stores/support';
 import { whatsappApi, api } from '@/lib/api';
+import { socketClient } from '@/lib/socket';
 import { useLabelsStore, Label as LabelType } from '@/stores/labels';
-import { Header, SubHeader } from '@/components/ui/header';
+import { Header } from '@/components/ui/header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -71,6 +72,25 @@ const Outros: React.FC = () => {
   const { toast } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
+  const currentUser = useMemo(() => {
+    try {
+      const storedSession = localStorage.getItem('salt_session');
+      const session = storedSession ? JSON.parse(storedSession) : null;
+      return {
+        id: session?.id || session?.userId || session?.email || 'current-user',
+        name: session?.name || 'User',
+        email: session?.email || '',
+        role: session?.role || 'user',
+      };
+    } catch {
+      return {
+        id: 'current-user',
+        name: 'User',
+        email: '',
+        role: 'user',
+      };
+    }
+  }, []);
   const [activeSection, setActiveSection] = useState<Section>(() => {
     // Check if navigated with a specific section
     const state = location.state as { section?: Section } | null;
@@ -505,7 +525,7 @@ const Outros: React.FC = () => {
     e.target.value = '';
   };
 
-  const initials = { name: "User", email: "", role: "user" }.name
+  const initials = currentUser.name
     .split(' ')
     .map(n => n[0])
     .join('')
@@ -1808,7 +1828,7 @@ TOOLS DISPONÍVEIS:
             <div className="flex flex-col items-center gap-3">
               <div className="relative">
                 <Avatar className="w-20 h-20 ring-1 ring-border/10">
-                  <AvatarImage src={profile.avatarUrl || undefined} alt={{ name: "User", email: "", role: "user" }.name} />
+                  <AvatarImage src={profile.avatarUrl || undefined} alt={currentUser.name} />
                   <AvatarFallback className="bg-primary/10 text-primary text-xl font-medium">
                     {initials}
                   </AvatarFallback>
@@ -1829,8 +1849,8 @@ TOOLS DISPONÍVEIS:
               </div>
 
               <div className="text-center">
-                <h3 className="text-[15px] font-semibold text-foreground">{{ name: "User", email: "", role: "user" }.name}</h3>
-                <p className="text-[12px] text-muted-foreground/70">eryk@saltdigi.com.br</p>
+                <h3 className="text-[15px] font-semibold text-foreground">{currentUser.name}</h3>
+                <p className="text-[12px] text-muted-foreground/70">{currentUser.email || 'sem-email@salt.local'}</p>
               </div>
 
               <div className="flex items-center gap-1.5">
@@ -2615,8 +2635,8 @@ TOOLS DISPONÍVEIS:
         iaLigacaoForm,
         'current-tenant',
         'Empresa Atual',
-        { name: "User", email: "", role: "user" }.id,
-        { name: "User", email: "", role: "user" }.name
+        currentUser.id,
+        currentUser.name
       );
 
       toast({
@@ -2901,8 +2921,8 @@ TOOLS DISPONÍVEIS:
         webhookForm,
         'current-tenant',
         'Empresa Atual',
-        { name: "User", email: "", role: "user" }.id,
-        { name: "User", email: "", role: "user" }.name
+        currentUser.id,
+        currentUser.name
       );
 
       toast({
@@ -3342,8 +3362,8 @@ TOOLS DISPONÍVEIS:
       suporteForm.descricao,
       'current-tenant', // Would come from auth context
       'Empresa Atual',  // Would come from tenant context
-      { name: "User", email: "", role: "user" }.id,
-      { name: "User", email: "", role: "user" }.name,
+      currentUser.id,
+      currentUser.name,
       'media'
     );
 
@@ -3624,8 +3644,8 @@ TOOLS DISPONÍVEIS:
         serviceName,
         'current-tenant', // Would come from auth context
         'Empresa Atual',  // Would come from tenant context
-        { name: "User", email: "", role: "user" }.id,
-        { name: "User", email: "", role: "user" }.name
+        currentUser.id,
+        currentUser.name
       );
 
       toast({
@@ -3638,8 +3658,8 @@ TOOLS DISPONÍVEIS:
         'Serviços e Expansões (Geral)',
         'current-tenant',
         'Empresa Atual',
-        { name: "User", email: "", role: "user" }.id,
-        { name: "User", email: "", role: "user" }.name
+        currentUser.id,
+        currentUser.name
       );
 
       toast({

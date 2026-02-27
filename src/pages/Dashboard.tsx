@@ -7,7 +7,7 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
+  Tooltip as RechartsTooltip,
   ResponsiveContainer,
   PieChart,
   Pie,
@@ -16,6 +16,7 @@ import {
   Line,
 } from 'recharts';
 import { Calendar, Filter, RotateCcw, ChevronDown, ChevronUp, Plus, Search, Phone, MessageCircle, MessageSquare, FileText, ArrowUp, ArrowDown, UserPlus, X, Pin, ShoppingCart, Headphones, History, Users, DollarSign, Tag, Target, Maximize2, Minimize2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useLeadDemands, getUniqueProducts, useLeadSchedules, formatScheduleType } from '@/stores/leads';
 import { useLabelsStore } from '@/stores/labels';
@@ -59,11 +60,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import {
   Tabs,
   TabsContent,
@@ -1309,7 +1305,7 @@ const Dashboard: React.FC = () => {
                     tickLine={false}
                     axisLine={false}
                   />
-                  <Tooltip
+                  <RechartsTooltip
                     contentStyle={{
                       backgroundColor: 'hsl(var(--card))',
                       border: '1px solid hsl(var(--border)/0.3)',
@@ -1411,7 +1407,7 @@ const Dashboard: React.FC = () => {
                     axisLine={false}
                     orientation="right"
                   />
-                  <Tooltip
+                  <RechartsTooltip
                     contentStyle={{
                       backgroundColor: 'hsl(var(--card))',
                       border: '1px solid hsl(var(--border)/0.3)',
@@ -1531,7 +1527,7 @@ const Dashboard: React.FC = () => {
                       tickLine={false}
                       axisLine={false}
                     />
-                    <Tooltip
+                    <RechartsTooltip
                       contentStyle={{
                         backgroundColor: 'hsl(var(--card))',
                         border: '1px solid hsl(var(--border)/0.3)',
@@ -1626,7 +1622,7 @@ const Dashboard: React.FC = () => {
                     tickLine={false}
                     axisLine={false}
                   />
-                  <Tooltip
+                  <RechartsTooltip
                     contentStyle={{
                       backgroundColor: 'hsl(var(--card))',
                       border: '1px solid hsl(var(--border)/0.3)',

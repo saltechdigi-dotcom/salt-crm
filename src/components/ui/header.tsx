@@ -198,8 +198,11 @@ const Header = React.forwardRef<HTMLElement, HeaderProps>(
       .slice(0, 2);
 
     const handleLogout = () => {
-      // Clear any session data
+      // Clear auth/session data used across app modules
       localStorage.removeItem('isLoggedIn');
+      localStorage.removeItem('salt_token');
+      localStorage.removeItem('salt_refresh_token');
+      localStorage.removeItem('salt_session');
       sessionStorage.clear();
       // Navigate to login page
       navigate('/login');

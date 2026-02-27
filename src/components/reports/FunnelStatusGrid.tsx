@@ -1,4 +1,5 @@
 import React from 'react';
+import { Filter } from 'lucide-react';
 
 
 // Color config for funnel stages

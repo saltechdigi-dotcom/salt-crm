@@ -230,7 +230,7 @@ class AdminStore {
       overdueTenants: this.tenants.filter(t => t.paymentStatus === 'atraso').length,
       suspendedTenants: this.tenants.filter(t => t.status === 'suspensa').length,
       totalActiveUsers: this.tenants.reduce((acc, t) => acc + t.usersActive, 0),
-      disconnectedWhatsapps: this.tenants.filter(t => t.whatsappsConnected === 0).length,
+      disconnectedWhatsapps: this.tenants.filter(t => !t.whatsappConnections.some(w => w.status === 'conectado')).length,
       criticalAlerts: this.alerts.filter(a => a.status === 'pendente').length,
     };
   }
@@ -255,7 +255,7 @@ class AdminStore {
       tickets: {
         total: this.tickets.length,
         open: this.tickets.filter(t => t.status === 'aberto').length,
-        inProgress: this.tickets.filter(t => t.status === 'em_atendimento').length,
+        inProgress: this.tickets.filter(t => t.status === 'em_andamento').length,
         resolved: this.tickets.filter(t => t.status === 'resolvido').length,
         critical: this.tickets.filter(t => t.priority === 'critica' && t.status !== 'resolvido').length,
       },
