@@ -64,7 +64,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             // Store tokens
             localStorage.setItem('salt_token', data.access_token);
             localStorage.setItem('salt_refresh_token', data.refresh_token);
-            // KEY: store user type so getMe() and interceptor know which endpoints to use
+            // Store user type so getMe() and interceptor know which endpoints to use
             localStorage.setItem('salt_user_type', userType);
 
             // Connect socket
@@ -105,7 +105,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             if (res.data?.user) {
                 return processLogin(res.data);
             }
-        } catch (err: any) {
+        } catch {
             // Both failed
         }
 
@@ -137,7 +137,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     },
 
     getMe: async () => {
-        const userType = getSaltUserType();
         const token = localStorage.getItem('salt_token');
 
         if (!token) {
@@ -145,14 +144,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             return;
         }
 
-        // Use the CORRECT endpoint based on stored user type — no fallback, no 401 surprises
-        const mePath = userType === 'superadmin' ? '/auth/superadmin/me' : '/auth/me';
-
+        // ALWAYS use /auth/me — the backend uses this for ALL user types (tenant + super-admin)
+        // The /auth/superadmin/me endpoint does NOT exist (returns 404)
         try {
-            const { data } = await api.get(mePath, { skipAuthRefresh: true } as any);
+            const { data } = await api.get('/auth/me', { skipAuthRefresh: true } as any);
 
             const frontendRole = roleMap[data.role] || (data.role === 'master' ? 'SUPER_ADMIN_MASTER' : 'TENANT_VENDEDOR');
+            const userType = isSuperAdminRole(data.role) ? 'superadmin' : 'tenant';
 
+            localStorage.setItem('salt_user_type', userType);
             localStorage.setItem('salt_session', JSON.stringify({
                 email: data.email,
                 loggedIn: true,
@@ -163,7 +163,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             socketClient.connect(token);
             set({ user: data, isAuthenticated: true });
         } catch {
-            // Only clear if the single correct endpoint failed
+            // /auth/me failed — check if we have a valid session from login (don't nuke it immediately)
+            const existingSession = localStorage.getItem('salt_session');
+            if (existingSession) {
+                // Keep the session from login — user just logged in, token might just need a refresh
+                try {
+                    const session = JSON.parse(existingSession);
+                    if (session.loggedIn) {
+                        set({ isAuthenticated: true });
+                        return;
+                    }
+                } catch {
+                    // Invalid session JSON
+                }
+            }
+
+            // No valid session — clear everything
             set({ user: null, isAuthenticated: false });
             localStorage.removeItem('salt_token');
             localStorage.removeItem('salt_refresh_token');

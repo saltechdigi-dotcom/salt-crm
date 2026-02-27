@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Building2, Users, AlertTriangle, Wifi, WifiOff, DollarSign,
   TrendingUp, TrendingDown, CreditCard, Calendar, Receipt, Target,
-  Search, Plus, Eye, LogIn, Ban, Play, X, ChevronRight, ChevronLeft, Settings,
+  Search, Plus, Eye, LogIn, Ban, Play, X, ChevronRight, ChevronLeft, Settings, Trash2,
   MoreHorizontal, ArrowLeft, Shield, UserCog, Clock, CheckCircle,
   XCircle, CalendarClock, AlertCircle, Headphones, MessageCircle,
   Mail, Phone, Check, Circle, Activity, Crown, Pencil
@@ -1195,10 +1195,11 @@ const TenantDetailModal: React.FC<{
   isMaster: boolean;
   onEnterAsAdmin: (tenant: Tenant) => void;
   onUpdateTenant: (tenantId: string, updates: Partial<Tenant>) => void;
+  onDeleteTenant: (tenantId: string) => void;
   supportTickets: SupportTicket[];
   onChangePlan: (tenantId: string, newPlan: PlanType) => void;
   onToggleFeatureOverride: (tenantId: string, featureKey: keyof FeatureFlags, enabled: boolean) => void;
-}> = ({ tenant, open, onClose, isMaster, onEnterAsAdmin, onUpdateTenant, supportTickets, onChangePlan, onToggleFeatureOverride }) => {
+}> = ({ tenant, open, onClose, isMaster, onEnterAsAdmin, onUpdateTenant, onDeleteTenant, supportTickets, onChangePlan, onToggleFeatureOverride }) => {
   const [activeTab, setActiveTab] = useState('overview');
   const [editedNotes, setEditedNotes] = useState('');
   const [editedLifecycleStatus, setEditedLifecycleStatus] = useState<ClientLifecycleStatus>('active');
@@ -1723,6 +1724,28 @@ const TenantDetailModal: React.FC<{
                 Salvar Notas
               </Button>
             </div>
+
+            {/* Danger Zone - Delete Tenant */}
+            {isMaster && (
+              <div className="mt-6 pt-4 border-t border-destructive/30">
+                <span className="text-[10px] uppercase tracking-widest text-destructive/70 font-semibold">Zona de Perigo</span>
+                <p className="text-xs text-muted-foreground mt-1 mb-3">Ações irreversíveis para esta empresa.</p>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="text-xs"
+                  onClick={() => {
+                    if (window.confirm(`Tem certeza que deseja DELETAR a empresa "${tenant?.name}"? Esta ação é IRREVERSÍVEL.`)) {
+                      onDeleteTenant(tenant!.id);
+                      onClose();
+                    }
+                  }}
+                >
+                  <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+                  Deletar Empresa Permanentemente
+                </Button>
+              </div>
+            )}
           </TabsContent>
         </div>
       </Tabs>
@@ -2600,19 +2623,31 @@ const SuperAdmin: React.FC = () => {
       const res = await api.post(`/superadmin/impersonate/${tenant.id}`);
       const data = res.data;
 
+      // Map backend role to frontend role
+      const roleMap: Record<string, string> = {
+        master: 'SUPER_ADMIN_MASTER',
+        admin: 'TENANT_ADMIN',
+        manager: 'TENANT_GERENTE',
+        agent: 'TENANT_VENDEDOR',
+        super_admin: 'SUPER_ADMIN_MASTER',
+      };
+      const frontendRole = roleMap[data.user?.role] || 'TENANT_ADMIN';
+
       const companySettings = {
         name: data?.tenant?.name || tenant.name,
         logoUrl: data?.tenant?.logoUrl || null,
         primaryColor: data?.tenant?.primaryColor || '#5B8DEF',
       };
 
+      // Set tokens and mark as tenant user type (impersonating a tenant)
       localStorage.setItem('salt_token', data.access_token);
       localStorage.setItem('salt_refresh_token', data.refresh_token);
+      localStorage.setItem('salt_user_type', 'tenant');
       localStorage.setItem('salt_session', JSON.stringify({
         id: data?.user?.id || data?.user?.email || 'current-user',
         email: data.user.email,
         loggedIn: true,
-        role: data.user.role,
+        role: frontendRole,
         name: data.user.name,
         tenantId: tenant.id,
         tenantName: tenant.name,
@@ -2624,6 +2659,18 @@ const SuperAdmin: React.FC = () => {
     } catch (error: any) {
       console.error('Impersonation error:', error);
       toast.error(error.response?.data?.message || 'Erro ao personificar empresa');
+    }
+  };
+
+  const handleDeleteTenant = async (tenantId: string) => {
+    try {
+      await api.delete(`/superadmin/tenants/${tenantId}`);
+      setTenants(prev => prev.filter(t => t.id !== tenantId));
+      setSelectedTenant(null);
+      toast.success('Empresa deletada com sucesso');
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.response?.data?.message || 'Erro ao deletar empresa');
     }
   };
 
@@ -3208,10 +3255,10 @@ const SuperAdmin: React.FC = () => {
         isMaster={isMaster}
         onEnterAsAdmin={handleEnterAsAdmin}
         onUpdateTenant={handleUpdateTenant}
+        onDeleteTenant={handleDeleteTenant}
         supportTickets={supportTickets}
         onChangePlan={(tenantId, newPlan) => handleUpdateTenant(tenantId, { plan: newPlan as any })}
         onToggleFeatureOverride={(tenantId, featureKey, enabled) => {
-          // Mock - em produção salvaria no banco
           toast.success(`Override ${enabled ? 'ativado' : 'desativado'} para ${featureKey}`);
         }}
       />
