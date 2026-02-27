@@ -167,27 +167,39 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             set({ user: data, isAuthenticated: true });
         };
 
-        const tryMe = async (path: string, skipRefresh = false) => {
-            const { data } = await api.get(path, skipRefresh ? { skipAuthRefresh: true } as any : undefined);
+        const tryMe = async (path: string) => {
+            // Always skip auth refresh for /me calls — we handle fallback manually
+            const { data } = await api.get(path, { skipAuthRefresh: true } as any);
             return data;
         };
 
         try {
-            // Primeiro tenta rota de tenant sem acionar refresh (para cair no fallback superadmin rapidamente)
-            const data = await tryMe('/auth/me', true);
+            // Primeiro tenta rota de tenant
+            const data = await tryMe('/auth/me');
             setSession(data);
             return;
         } catch (err: any) {
             try {
+                // Fallback para superadmin — ALSO skip auth refresh to prevent interceptor from force-logging out
                 const data = await tryMe('/auth/superadmin/me');
                 setSession(data);
                 return;
             } catch {
-                set({ user: null, isAuthenticated: false });
-                localStorage.removeItem('salt_token');
-                localStorage.removeItem('salt_refresh_token');
-                localStorage.removeItem('salt_session');
-                socketClient.disconnect();
+                // Only clear session if no token exists (avoid clearing a valid session during transient network errors)
+                const token = localStorage.getItem('salt_token');
+                if (!token) {
+                    set({ user: null, isAuthenticated: false });
+                    localStorage.removeItem('salt_session');
+                    socketClient.disconnect();
+                } else {
+                    // Token exists but both /me endpoints failed — keep isAuthenticated based on session
+                    const session = localStorage.getItem('salt_session');
+                    if (!session) {
+                        set({ user: null, isAuthenticated: false });
+                        socketClient.disconnect();
+                    }
+                    // If session exists, don't clear it — let user continue and RoleGuard will handle
+                }
             }
         }
     },
