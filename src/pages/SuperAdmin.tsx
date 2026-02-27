@@ -2099,9 +2099,17 @@ const InternalUsersModal: React.FC<{
       toast.error('Preencha todos os campos obrigatórios');
       return;
     }
+    const normalizedEmail = formData.email.trim().toLowerCase();
+    const emailExists = users.some(
+      (user) => user.email.trim().toLowerCase() === normalizedEmail,
+    );
+    if (emailExists) {
+      toast.error('Já existe um usuário com esse e-mail');
+      return;
+    }
     onAddUser({
       name: formData.name,
-      email: formData.email,
+      email: formData.email.trim(),
       role: formData.role,
       status: formData.status,
     });

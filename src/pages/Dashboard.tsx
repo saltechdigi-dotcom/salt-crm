@@ -96,6 +96,20 @@ const tableLeadsCarteira: TableLead[] = [];
 
 const tableLeadsProspeccao: TableLead[] = [];
 
+// Canais de comunicacao default para origem do lead
+const DEFAULT_ORIGINS: { id: string; name: string }[] = [
+  { id: 'instagram', name: 'Instagram' },
+  { id: 'facebook', name: 'Facebook' },
+  { id: 'whatsapp', name: 'WhatsApp' },
+  { id: 'linkedin', name: 'LinkedIn' },
+  { id: 'tiktok', name: 'TikTok' },
+  { id: 'site', name: 'Site' },
+  { id: 'email', name: 'E-mail' },
+  { id: 'telefone', name: 'Telefone' },
+  { id: 'indicacao', name: 'Indicação' },
+  { id: 'outro', name: 'Outro' },
+];
+
 // Softer, less saturated colors for premium feel
 const COLORS = ['#5A8FD4', '#7B6DB3', '#9B7DB8', '#D4A03A', '#5CB87A', '#D46B6B'];
 
@@ -129,13 +143,35 @@ const Dashboard: React.FC = () => {
       .catch(err => console.error('Error fetching sales stats:', err));
   }, []);
 
-  // Lead origins from API
+  // Lead origins from API + fallback defaults
   const [leadOrigins, setLeadOrigins] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
+    const mergeOrigins = (apiOrigins: any[]): { id: string; name: string }[] => {
+      const normalize = (name: string) => name.trim().toLowerCase();
+      const merged = [...DEFAULT_ORIGINS];
+
+      apiOrigins.forEach((origin) => {
+        if (!origin?.name) return;
+        const name = String(origin.name);
+        const id = origin.id ? String(origin.id) : normalize(name).replace(/\s+/g, '-');
+        if (!merged.some((o) => normalize(o.name) === normalize(name))) {
+          merged.push({ id, name });
+        }
+      });
+
+      return merged;
+    };
+
     api.get('/origins')
-      .then(res => setLeadOrigins(Array.isArray(res.data) ? res.data : []))
-      .catch(err => console.error('Error fetching origins:', err));
+      .then(res => {
+        const data = Array.isArray(res.data) ? res.data : [];
+        setLeadOrigins(mergeOrigins(data));
+      })
+      .catch(err => {
+        console.error('Error fetching origins:', err);
+        setLeadOrigins(DEFAULT_ORIGINS);
+      });
   }, []);
 
   const [selectedManager, setSelectedManager] = useState<string>('');
