@@ -4,6 +4,7 @@ import { app } from './app.js';
 import { env } from './config/env.js';
 import { connectDatabase, disconnectDatabase } from './config/database.js';
 import { initializeSocket } from './config/socket.js';
+import { initCronJobs } from './jobs/cron.js';
 import { logger } from './utils/logger.js';
 
 async function bootstrap() {
@@ -16,6 +17,9 @@ async function bootstrap() {
 
         // Initialize Socket.io
         initializeSocket(httpServer);
+
+        // Initialize cron jobs (follow-ups, NPS)
+        initCronJobs();
 
         console.log('Server starting... salt-crm-backend');
         // Start server

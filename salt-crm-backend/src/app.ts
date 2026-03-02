@@ -23,6 +23,7 @@ import { npsRoutes } from './modules/nps/nps.routes.js';
 import { teamsRoutes } from './modules/teams/teams.routes.js';
 import supportTicketsRoutes from './modules/support-tickets/support-tickets.routes.js';
 import superAdminV2Routes from './modules/super-admin/super-admin.routes.js';
+import aiPromptsRoutes from './modules/ai-prompts/ai-prompts.routes.js';
 import { logger } from './utils/logger.js';
 
 const app = express();
@@ -101,6 +102,7 @@ apiRouter.use('/nps', npsRoutes);
 apiRouter.use('/teams', teamsRoutes);
 apiRouter.use('/support-tickets', supportTicketsRoutes);
 apiRouter.use('/super-admin', superAdminV2Routes);
+apiRouter.use('/ai-prompts', aiPromptsRoutes);
 
 app.use('/api/v1', apiRouter);
 
