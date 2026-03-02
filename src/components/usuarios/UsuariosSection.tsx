@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,6 +16,7 @@ import {
   Shield,
   Mail,
 } from 'lucide-react';
+import api from '@/lib/api';
 
 interface UserData {
   id: string;
@@ -36,6 +37,26 @@ export const UsuariosSection: React.FC<UsuariosSectionProps> = ({ onBack }) => {
 
   // Mock initial users
   const [users, setUsers] = useState<UserData[]>([]);
+  const [usersLoading, setUsersLoading] = useState(true);
+
+  // Fetch users from API
+  useEffect(() => {
+    setUsersLoading(true);
+    api.get('/users')
+      .then(res => {
+        const data = res.data?.data || res.data || [];
+        const mapped: UserData[] = (Array.isArray(data) ? data : []).map((u: any) => ({
+          id: u.id,
+          name: u.name || '',
+          email: u.email || '',
+          role: u.role === 'manager' || u.role === 'admin' ? 'gerente' as const : 'vendedor' as const,
+          active: u.isActive !== false,
+        }));
+        setUsers(mapped);
+      })
+      .catch(err => console.error('Error fetching users:', err))
+      .finally(() => setUsersLoading(false));
+  }, []);
 
   const [view, setView] = useState<View>('main');
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
@@ -60,50 +81,75 @@ export const UsuariosSection: React.FC<UsuariosSectionProps> = ({ onBack }) => {
     });
   };
 
-  const handleCreateUser = () => {
+  const handleCreateUser = async () => {
     if (!formName.trim() || !formEmail.trim()) {
       toast({ title: 'Preencha todos os campos', variant: 'destructive' });
       return;
     }
 
-    const newUser: UserData = {
-      id: `user-${Date.now()}`,
-      name: formName.trim(),
-      email: formEmail.trim(),
-      role: formRole,
-      active: true,
-    };
-
-    setUsers(prev => [...prev, newUser]);
-    setFormName('');
-    setFormEmail('');
-    setFormRole('vendedor');
-    setView('main');
-    toast({ title: 'Usuário criado', description: `${newUser.name} foi adicionado.` });
+    try {
+      const roleMap = { gerente: 'manager', vendedor: 'agent' } as const;
+      const res = await api.post('/users', {
+        name: formName.trim(),
+        email: formEmail.trim(),
+        role: roleMap[formRole],
+        password: 'Salt@2024', // Default password — user should change
+      });
+      const newUser: UserData = {
+        id: res.data.id || `user-${Date.now()}`,
+        name: formName.trim(),
+        email: formEmail.trim(),
+        role: formRole,
+        active: true,
+      };
+      setUsers(prev => [...prev, newUser]);
+      setFormName('');
+      setFormEmail('');
+      setFormRole('vendedor');
+      setView('main');
+      toast({ title: 'Usuário criado', description: `${newUser.name} foi adicionado.` });
+    } catch (err: any) {
+      toast({ title: 'Erro ao criar usuário', description: err.response?.data?.message || 'Tente novamente.', variant: 'destructive' });
+    }
   };
 
-  const handleUpdateUser = () => {
+  const handleUpdateUser = async () => {
     if (!selectedUserId || !formName.trim() || !formEmail.trim()) {
       toast({ title: 'Preencha todos os campos', variant: 'destructive' });
       return;
     }
 
-    setUsers(prev => prev.map(u =>
-      u.id === selectedUserId
-        ? { ...u, name: formName.trim(), email: formEmail.trim(), role: formRole }
-        : u
-    ));
-    setView('user-detail');
-    toast({ title: 'Usuário atualizado' });
+    try {
+      const roleMap = { gerente: 'manager', vendedor: 'agent' } as const;
+      await api.put(`/users/${selectedUserId}`, {
+        name: formName.trim(),
+        email: formEmail.trim(),
+        role: roleMap[formRole],
+      });
+      setUsers(prev => prev.map(u =>
+        u.id === selectedUserId
+          ? { ...u, name: formName.trim(), email: formEmail.trim(), role: formRole }
+          : u
+      ));
+      setView('user-detail');
+      toast({ title: 'Usuário atualizado' });
+    } catch (err: any) {
+      toast({ title: 'Erro ao atualizar', description: err.response?.data?.message || 'Tente novamente.', variant: 'destructive' });
+    }
   };
 
-  const handleDeleteUser = (userId: string) => {
+  const handleDeleteUser = async (userId: string) => {
     const user = users.find(u => u.id === userId);
     if (!user) return;
 
-    setUsers(prev => prev.filter(u => u.id !== userId));
-    setView('main');
-    toast({ title: 'Usuário excluído', description: `${user.name} foi removido.` });
+    try {
+      await api.delete(`/users/${userId}`);
+      setUsers(prev => prev.filter(u => u.id !== userId));
+      setView('main');
+      toast({ title: 'Usuário excluído', description: `${user.name} foi removido.` });
+    } catch (err: any) {
+      toast({ title: 'Erro ao excluir', description: err.response?.data?.message || 'Tente novamente.', variant: 'destructive' });
+    }
   };
 
   // Sub-header component - com safe-area para mobile/PWA
@@ -336,8 +382,8 @@ export const UsuariosSection: React.FC<UsuariosSectionProps> = ({ onBack }) => {
                 </p>
               </div>
               <div className={`px-2 py-1 rounded text-[10px] font-medium ${selectedUser.role === 'gerente'
-                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                  : 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
+                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                : 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
                 }`}>
                 {selectedUser.role === 'gerente' ? 'Gerente' : 'Vendedor'}
               </div>

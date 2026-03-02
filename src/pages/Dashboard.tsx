@@ -143,6 +143,91 @@ const Dashboard: React.FC = () => {
       .catch(err => console.error('Error fetching sales stats:', err));
   }, []);
 
+  // ========== LEADS FROM API ==========
+  const [apiLeads, setApiLeads] = useState<any[]>([]);
+  const [leadsLoading, setLeadsLoading] = useState(false);
+
+  useEffect(() => {
+    setLeadsLoading(true);
+    api.get('/leads', { params: { limit: 500 } })
+      .then(res => {
+        const data = res.data?.data || res.data || [];
+        setApiLeads(Array.isArray(data) ? data : []);
+      })
+      .catch(err => console.error('Error fetching leads:', err))
+      .finally(() => setLeadsLoading(false));
+  }, []);
+
+  // ========== NPS STATS FROM API ==========
+  const [npsStats, setNpsStats] = useState<{
+    total: number;
+    promoters: number;
+    passives: number;
+    detractors: number;
+    npsScore: number;
+    avgScore: number;
+    pending: number;
+  } | null>(null);
+
+  useEffect(() => {
+    api.get('/nps/stats')
+      .then(res => setNpsStats(res.data))
+      .catch(err => console.error('Error fetching NPS stats:', err));
+  }, []);
+
+  // ========== USERS & TEAMS FROM API ==========
+  const [apiUsers, setApiUsers] = useState<any[]>([]);
+
+  useEffect(() => {
+    api.get('/users')
+      .then(res => {
+        const data = res.data?.data || res.data || [];
+        setApiUsers(Array.isArray(data) ? data : []);
+      })
+      .catch(err => console.error('Error fetching users:', err));
+  }, []);
+
+  // Derived: managers and agents from users
+  const managers = useMemo(() => apiUsers.filter(u => u.role === 'manager' || u.role === 'admin'), [apiUsers]);
+  const agents = useMemo(() => apiUsers.filter(u => u.role === 'agent'), [apiUsers]);
+
+  // ========== FUNNELS FROM API ==========
+  const [funnelStages, setFunnelStages] = useState<any[]>([]);
+
+  useEffect(() => {
+    api.get('/funnels')
+      .then(res => {
+        const funnels = Array.isArray(res.data) ? res.data : res.data?.data || [];
+        if (funnels.length > 0 && funnels[0].stages) {
+          setFunnelStages(funnels[0].stages.sort((a: any, b: any) => a.order - b.order));
+        }
+      })
+      .catch(err => console.error('Error fetching funnels:', err));
+  }, []);
+
+  // ========== KPI DATA (derived from leads) ==========
+  const kpiData = useMemo(() => {
+    const total = apiLeads.length;
+    const qualified = apiLeads.filter(l => l.qualifiedByAI).length;
+    const notQualified = total - qualified;
+    const newToday = apiLeads.filter(l => {
+      const d = new Date(l.createdAt);
+      const today = new Date();
+      return d.toDateString() === today.toDateString();
+    }).length;
+    const withAgent = apiLeads.filter(l => l.assignedToId).length;
+    const withoutAgent = total - withAgent;
+
+    return [
+      { label: 'Total de Leads', value: total.toString(), color: 'primary' as const },
+      { label: 'Qualificados (IA)', value: qualified.toString(), color: 'success' as const },
+      { label: 'Não Qualificados/Roleta', value: notQualified.toString(), color: 'warning' as const },
+      { label: 'Novos Hoje', value: newToday.toString(), color: 'info' as const },
+      { label: 'Distribuídos', value: withAgent.toString(), color: 'success' as const },
+      { label: 'Sem Responsável', value: withoutAgent.toString(), color: 'destructive' as const },
+    ];
+  }, [apiLeads]);
+
   // Lead origins from API + fallback defaults
   const [leadOrigins, setLeadOrigins] = useState<{ id: string; name: string }[]>([]);
 
@@ -728,8 +813,8 @@ const Dashboard: React.FC = () => {
   };
 
   const filteredAgents = selectedManager && selectedManager !== 'all'
-    ? [].filter(a => a.managerId === selectedManager)
-    : [];
+    ? agents.filter((a: any) => a.managerId === selectedManager || a.teamId === selectedManager)
+    : agents;
 
   const handleApplyFilters = () => {
     // In production, this would call an API with the filters
@@ -1053,7 +1138,7 @@ const Dashboard: React.FC = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Gerente</SelectItem>
-                  {[].map((manager) => (
+                  {managers.map((manager: any) => (
                     <SelectItem key={manager.id} value={manager.id}>
                       {manager.name}
                     </SelectItem>
@@ -1124,14 +1209,14 @@ const Dashboard: React.FC = () => {
             </div>
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] text-muted-foreground/50">Pesquisas:</span>
-              <span className="text-sm font-bold text-primary">0</span>
+              <span className="text-sm font-bold text-primary">{npsStats?.total ?? 0}</span>
             </div>
           </div>
           <div className="p-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
             {/* Respostas */}
             <div className="bg-[#4FC3B5]/10 rounded-lg p-3 border border-[#4FC3B5]/20">
               <p className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-1">Respostas</p>
-              <p className="text-xl font-bold text-[#4FC3B5]">0</p>
+              <p className="text-xl font-bold text-[#4FC3B5]">{(npsStats?.total ?? 0) - (npsStats?.pending ?? 0)}</p>
             </div>
 
             {/* Promotores - Clicável */}
@@ -1140,7 +1225,7 @@ const Dashboard: React.FC = () => {
               className="bg-success/10 rounded-lg p-3 border border-success/20 text-left hover:bg-success/20 hover:border-success/40 transition-all duration-200 active:scale-[0.98]"
             >
               <p className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-1">🟢 Promotores</p>
-              <p className="text-xl font-bold text-success">0</p>
+              <p className="text-xl font-bold text-success">{npsStats?.promoters ?? 0}</p>
             </button>
 
             {/* Neutros - Clicável */}
@@ -1149,7 +1234,7 @@ const Dashboard: React.FC = () => {
               className="bg-yellow-500/10 rounded-lg p-3 border border-yellow-500/20 text-left hover:bg-yellow-500/20 hover:border-yellow-500/40 transition-all duration-200 active:scale-[0.98]"
             >
               <p className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-1">🟡 Neutros</p>
-              <p className="text-xl font-bold text-yellow-600">0</p>
+              <p className="text-xl font-bold text-yellow-600">{npsStats?.passives ?? 0}</p>
             </button>
 
             {/* Detratores - Clicável */}
@@ -1158,7 +1243,7 @@ const Dashboard: React.FC = () => {
               className="bg-destructive/10 rounded-lg p-3 border border-destructive/20 text-left hover:bg-destructive/20 hover:border-destructive/40 transition-all duration-200 active:scale-[0.98]"
             >
               <p className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-1">🔴 Detratores</p>
-              <p className="text-xl font-bold text-destructive">0</p>
+              <p className="text-xl font-bold text-destructive">{npsStats?.detractors ?? 0}</p>
             </button>
           </div>
         </div>
@@ -1171,7 +1256,7 @@ const Dashboard: React.FC = () => {
           </div>
           <div className="p-2.5">
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
-              {[].map((kpi, index) => {
+              {kpiData.map((kpi, index) => {
                 const isClickable = ['Total de Leads', 'Qualificados (IA)', 'Não Qualificados/Roleta', 'Qualificados/Roleta'].includes(kpi.label);
                 const isActive = activeKpiFilter === kpi.label;
 

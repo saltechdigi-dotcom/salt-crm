@@ -293,6 +293,74 @@ export class SuperAdminService {
     }
 
     // ==========================================
+    // TENANTS - DELETE (CASCADE)
+    // ==========================================
+    async deleteTenant(id: string) {
+        const tenant = await prisma.tenant.findUnique({ where: { id } });
+        if (!tenant) throw new NotFoundError('Empresa não encontrada');
+
+        // Delete ALL related records in dependency order via transaction
+        await prisma.$transaction(async (tx) => {
+            // 1. Delete deep nested relations first
+            await tx.leadTag.deleteMany({ where: { lead: { tenantId: id } } });
+            await tx.leadStageHistory.deleteMany({ where: { tenantId: id } });
+            await tx.leadHistory.deleteMany({ where: { tenantId: id } });
+            await tx.slaMetric.deleteMany({ where: { tenantId: id } });
+            await tx.aiInteractionLog.deleteMany({ where: { tenantId: id } });
+            await tx.distributionLog.deleteMany({ where: { tenantId: id } });
+            await tx.npsSurvey.deleteMany({ where: { tenantId: id } });
+            await tx.schedule.deleteMany({ where: { tenantId: id } });
+            await tx.dashboardMetricDaily.deleteMany({ where: { tenantId: id } });
+            await tx.automationLog.deleteMany({ where: { tenantId: id } });
+            await tx.notification.deleteMany({ where: { tenantId: id } });
+
+            // 2. Delete sales
+            await tx.sale.deleteMany({ where: { tenantId: id } });
+
+            // 3. Delete messages, then conversations
+            await tx.message.deleteMany({ where: { tenantId: id } });
+            await tx.conversation.deleteMany({ where: { tenantId: id } });
+
+            // 4. Delete leads
+            await tx.lead.deleteMany({ where: { tenantId: id } });
+
+            // 5. Delete funnel stages, funnels, loss reasons, tags, lead origins
+            await tx.funnelStage.deleteMany({ where: { tenantId: id } });
+            await tx.funnel.deleteMany({ where: { tenantId: id } });
+            await tx.lossReason.deleteMany({ where: { tenantId: id } });
+            await tx.tag.deleteMany({ where: { tenantId: id } });
+            await tx.leadOrigin.deleteMany({ where: { tenantId: id } });
+
+            // 6. Delete products, AI agents, AI prompts, distribution rules
+            await tx.product.deleteMany({ where: { tenantId: id } });
+            await tx.aiAgent.deleteMany({ where: { tenantId: id } });
+            await tx.aiPrompt.deleteMany({ where: { tenantId: id } });
+            await tx.distributionRule.deleteMany({ where: { tenantId: id } });
+
+            // 7. Delete WhatsApp connections
+            await tx.whatsappConnection.deleteMany({ where: { tenantId: id } });
+
+            // 8. Delete support tickets, critical alerts
+            await tx.supportTicket.deleteMany({ where: { tenantId: id } });
+            await tx.criticalAlert.deleteMany({ where: { tenantId: id } });
+
+            // 9. Delete tenant settings, onboarding, feature overrides
+            await tx.tenantSettings.deleteMany({ where: { tenantId: id } });
+            await tx.tenantOnboarding.deleteMany({ where: { tenantId: id } });
+            await tx.tenantFeatureOverride.deleteMany({ where: { tenantId: id } });
+
+            // 10. Delete users and teams
+            await tx.user.deleteMany({ where: { tenantId: id } });
+            await tx.team.deleteMany({ where: { tenantId: id } });
+
+            // 11. Finally delete the tenant
+            await tx.tenant.delete({ where: { id } });
+        });
+
+        return { success: true, message: `Empresa "${tenant.name}" deletada permanentemente` };
+    }
+
+    // ==========================================
     // USER PASSWORD RESET
     // ==========================================
     async resetUserPassword(userId: string, newPassword: string) {

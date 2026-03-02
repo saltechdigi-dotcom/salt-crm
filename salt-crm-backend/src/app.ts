@@ -16,6 +16,13 @@ import { superAdminRoutes } from './modules/superadmin/superadmin.routes.js';
 import { productsRoutes } from './modules/products/products.routes.js';
 import { salesRoutes } from './modules/sales/sales.routes.js';
 import { originsRoutes } from './modules/origins/origins.routes.js';
+import { schedulesRoutes } from './modules/schedules/schedules.routes.js';
+import { notificationsRoutes } from './modules/notifications/notifications.routes.js';
+import { distributionRoutes } from './modules/distribution/distribution.routes.js';
+import { npsRoutes } from './modules/nps/nps.routes.js';
+import { teamsRoutes } from './modules/teams/teams.routes.js';
+import supportTicketsRoutes from './modules/support-tickets/support-tickets.routes.js';
+import superAdminV2Routes from './modules/super-admin/super-admin.routes.js';
 import { logger } from './utils/logger.js';
 
 const app = express();
@@ -87,6 +94,13 @@ apiRouter.use('/superadmin', superAdminRoutes);
 apiRouter.use('/products', productsRoutes);
 apiRouter.use('/sales', salesRoutes);
 apiRouter.use('/origins', originsRoutes);
+apiRouter.use('/schedules', schedulesRoutes);
+apiRouter.use('/notifications', notificationsRoutes);
+apiRouter.use('/distribution', distributionRoutes);
+apiRouter.use('/nps', npsRoutes);
+apiRouter.use('/teams', teamsRoutes);
+apiRouter.use('/support-tickets', supportTicketsRoutes);
+apiRouter.use('/super-admin', superAdminV2Routes);
 
 app.use('/api/v1', apiRouter);
 

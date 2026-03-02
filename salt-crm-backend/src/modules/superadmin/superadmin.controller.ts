@@ -62,6 +62,16 @@ class SuperAdminController {
         }
     }
 
+    // DELETE /superadmin/tenants/:id
+    async deleteTenant(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const result = await superAdminService.deleteTenant(req.params.id);
+            res.status(200).json(result);
+        } catch (error) {
+            next(error);
+        }
+    }
+
     // GET /superadmin/kpis
     async getKPIs(_req: Request, res: Response, next: NextFunction): Promise<void> {
         try {

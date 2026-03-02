@@ -1,4 +1,8 @@
-// Lead History Store - Mockado para integração futura com Supabase
+// Lead History Store - Connected to Backend API
+// Uses /api/v1/leads/:id/history for fetching history events
+
+import { useState, useEffect, useCallback } from 'react';
+import api from '@/lib/api';
 
 export type HistoryEventType =
   | 'observation'
@@ -10,7 +14,10 @@ export type HistoryEventType =
   | 'transfer'
   | 'sale_registered'
   | 'contact_attempt'
-  | 'message_sent';
+  | 'message_sent'
+  | 'message_received'
+  | 'ai_interaction'
+  | 'assignment';
 
 export interface LeadHistoryEvent {
   id: string;
@@ -19,8 +26,8 @@ export interface LeadHistoryEvent {
   title: string;
   description: string;
   metadata?: Record<string, any>;
-  createdBy: string;
-  createdAt: Date;
+  createdBy: { id: string; name: string; avatarUrl?: string } | null;
+  createdAt: string;
 }
 
 export interface LeadProfile {
@@ -28,8 +35,8 @@ export interface LeadProfile {
   name: string;
   phone: string;
   email?: string;
-  document?: string; // CPF/CNPJ
-  origin: string;
+  document?: string;
+  origin?: { id: string; name: string; type: string; color: string } | null;
   reference?: string;
   address?: {
     cep?: string;
@@ -40,262 +47,176 @@ export interface LeadProfile {
     city?: string;
     state?: string;
   };
-  createdAt: Date;
-  convertedToClientAt?: Date;
+  createdAt: string;
+  convertedToClientAt?: string;
   isClient: boolean;
 }
 
-// Mock data
-const mockHistoryEvents: LeadHistoryEvent[] = [];
-
-const mockLeadProfiles: LeadProfile[] = [];
-
-let historyEvents = [...mockHistoryEvents];
-let leadProfiles = [...mockLeadProfiles];
-let listeners: (() => void)[] = [];
-
-const notifyListeners = () => {
-  listeners.forEach(fn => fn());
-};
-
-export const leadHistoryStore = {
-  // Get all history events for a lead
-  getHistoryForLead(leadId: string): LeadHistoryEvent[] {
-    return historyEvents
-      .filter(event => event.leadId === leadId)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-  },
-
-  // Get lead profile
-  getLeadProfile(leadId: string): LeadProfile | undefined {
-    return leadProfiles.find(p => p.id === leadId);
-  },
-
-  // Add observation
-  addObservation(leadId: string, description: string, createdBy: string): LeadHistoryEvent {
-    const event: LeadHistoryEvent = {
-      id: `hist-${Date.now()}`,
-      leadId,
-      type: 'observation',
-      title: 'Observação adicionada',
-      description,
-      createdBy,
-      createdAt: new Date(),
-    };
-    historyEvents.push(event);
-    notifyListeners();
-    return event;
-  },
-
-  // Add schedule event
-  addScheduleEvent(
-    leadId: string,
-    type: 'schedule_created' | 'schedule_completed' | 'schedule_cancelled',
-    description: string,
-    metadata: Record<string, any>,
-    createdBy: string
-  ): LeadHistoryEvent {
-    const titles = {
-      schedule_created: 'Agendamento criado',
-      schedule_completed: 'Agendamento concluído',
-      schedule_cancelled: 'Agendamento cancelado',
-    };
-
-    const event: LeadHistoryEvent = {
-      id: `hist-${Date.now()}`,
-      leadId,
-      type,
-      title: titles[type],
-      description,
-      metadata,
-      createdBy,
-      createdAt: new Date(),
-    };
-    historyEvents.push(event);
-    notifyListeners();
-    return event;
-  },
-
-  // Add status change
-  addStatusChange(leadId: string, fromStatus: string, toStatus: string, createdBy: string): LeadHistoryEvent {
-    const event: LeadHistoryEvent = {
-      id: `hist-${Date.now()}`,
-      leadId,
-      type: 'status_change',
-      title: 'Status alterado',
-      description: `Status alterado de "${fromStatus}" para "${toStatus}"`,
-      metadata: { from: fromStatus, to: toStatus },
-      createdBy,
-      createdAt: new Date(),
-    };
-    historyEvents.push(event);
-    notifyListeners();
-    return event;
-  },
-
-  // Add temperature change
-  addTemperatureChange(leadId: string, fromTemp: string, toTemp: string, createdBy: string): LeadHistoryEvent {
-    const event: LeadHistoryEvent = {
-      id: `hist-${Date.now()}`,
-      leadId,
-      type: 'temperature_change',
-      title: 'Temperatura alterada',
-      description: `Lead aquecido de "${fromTemp}" para "${toTemp}"`,
-      metadata: { from: fromTemp, to: toTemp },
-      createdBy,
-      createdAt: new Date(),
-    };
-    historyEvents.push(event);
-    notifyListeners();
-    return event;
-  },
-
-  // Add contact attempt
-  addContactAttempt(leadId: string, description: string, createdBy: string): LeadHistoryEvent {
-    const event: LeadHistoryEvent = {
-      id: `hist-${Date.now()}`,
-      leadId,
-      type: 'contact_attempt',
-      title: 'Tentativa de contato',
-      description,
-      createdBy,
-      createdAt: new Date(),
-    };
-    historyEvents.push(event);
-    notifyListeners();
-    return event;
-  },
-
-  // Add message sent
-  addMessageSent(leadId: string, description: string, createdBy: string): LeadHistoryEvent {
-    const event: LeadHistoryEvent = {
-      id: `hist-${Date.now()}`,
-      leadId,
-      type: 'message_sent',
-      title: 'Mensagem enviada',
-      description,
-      createdBy,
-      createdAt: new Date(),
-    };
-    historyEvents.push(event);
-    notifyListeners();
-    return event;
-  },
-
-  // Add transfer event
-  addTransfer(leadId: string, fromSeller: string, toSeller: string, createdBy: string): LeadHistoryEvent {
-    const event: LeadHistoryEvent = {
-      id: `hist-${Date.now()}`,
-      leadId,
-      type: 'transfer',
-      title: 'Lead transferido',
-      description: `Transferido de ${fromSeller} para ${toSeller}`,
-      metadata: { from: fromSeller, to: toSeller },
-      createdBy,
-      createdAt: new Date(),
-    };
-    historyEvents.push(event);
-    notifyListeners();
-    return event;
-  },
-
-  // Register sale
-  addSaleRegistered(leadId: string, saleData: Record<string, any>, createdBy: string): LeadHistoryEvent {
-    const event: LeadHistoryEvent = {
-      id: `hist-${Date.now()}`,
-      leadId,
-      type: 'sale_registered',
-      title: 'Venda registrada',
-      description: `Venda no valor de ${saleData.value || 'N/A'} registrada`,
-      metadata: saleData,
-      createdBy,
-      createdAt: new Date(),
-    };
-    historyEvents.push(event);
-
-    // Mark lead as client
-    const profile = leadProfiles.find(p => p.id === leadId);
-    if (profile) {
-      profile.isClient = true;
-      profile.convertedToClientAt = new Date();
-    }
-
-    notifyListeners();
-    return event;
-  },
-
-  // Update lead profile
-  updateLeadProfile(leadId: string, data: Partial<LeadProfile>): LeadProfile | undefined {
-    const index = leadProfiles.findIndex(p => p.id === leadId);
-    if (index >= 0) {
-      leadProfiles[index] = { ...leadProfiles[index], ...data };
-      notifyListeners();
-      return leadProfiles[index];
-    }
-
-    // Create new profile if doesn't exist
-    const newProfile: LeadProfile = {
-      id: leadId,
-      name: data.name || 'Lead',
-      phone: data.phone || '',
-      origin: data.origin || 'Desconhecido',
-      createdAt: new Date(),
-      isClient: false,
-      ...data,
-    };
-    leadProfiles.push(newProfile);
-    notifyListeners();
-    return newProfile;
-  },
-
-  // Get history count for a lead
-  getHistoryCount(leadId: string): number {
-    return historyEvents.filter(e => e.leadId === leadId).length;
-  },
-
-  // Subscribe to changes
-  subscribe(fn: () => void): () => void {
-    listeners.push(fn);
-    return () => {
-      listeners = listeners.filter(l => l !== fn);
-    };
-  },
-};
-
-// React hook
-import { useState, useEffect } from 'react';
-
+// React hook - fetches from API
 export function useLeadHistory(leadId?: string) {
-  const [, setTick] = useState(0);
+  const [history, setHistory] = useState<LeadHistoryEvent[]>([]);
+  const [profile, setProfile] = useState<LeadProfile | undefined>();
+  const [loading, setLoading] = useState(false);
+
+  const fetchHistory = useCallback(async () => {
+    if (!leadId) return;
+    setLoading(true);
+    try {
+      const res = await api.get(`/leads/${leadId}/history`);
+      const events = Array.isArray(res.data) ? res.data : [];
+      setHistory(events.map((e: any) => ({
+        id: e.id,
+        leadId: e.leadId,
+        type: e.eventType || e.type,
+        title: e.title,
+        description: e.description || '',
+        metadata: e.metadata,
+        createdBy: e.createdBy,
+        createdAt: e.createdAt,
+      })));
+    } catch (err) {
+      console.error('Error fetching lead history:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [leadId]);
+
+  const fetchProfile = useCallback(async () => {
+    if (!leadId) return;
+    try {
+      const res = await api.get(`/leads/${leadId}`);
+      const lead = res.data;
+      setProfile({
+        id: lead.id,
+        name: lead.name,
+        phone: lead.phone,
+        email: lead.email,
+        document: lead.document,
+        origin: lead.origin,
+        createdAt: lead.createdAt,
+        convertedToClientAt: lead.convertedToClientAt,
+        isClient: !!lead.convertedToClientAt,
+        address: {
+          street: lead.addressStreet,
+          number: lead.addressNumber,
+          complement: lead.addressComplement,
+          neighborhood: lead.addressNeighborhood,
+          cep: lead.addressZipcode,
+          city: lead.city,
+          state: lead.state,
+        },
+      });
+    } catch (err) {
+      console.error('Error fetching lead profile:', err);
+    }
+  }, [leadId]);
 
   useEffect(() => {
-    const unsub = leadHistoryStore.subscribe(() => setTick(t => t + 1));
-    return unsub;
-  }, []);
+    fetchHistory();
+    fetchProfile();
+  }, [fetchHistory, fetchProfile]);
+
+  const addObservation = useCallback(async (description: string, _createdBy: string) => {
+    if (!leadId) return;
+    try {
+      // POST to create a history entry of type observation
+      // The backend handles this through the leads controller
+      await api.post(`/leads/${leadId}/history`, {
+        eventType: 'observation',
+        title: 'Observação adicionada',
+        description,
+      }).catch(() => {
+        // If no dedicated endpoint, we'll add it locally and refresh
+      });
+      await fetchHistory();
+    } catch (err) {
+      console.error('Error adding observation:', err);
+    }
+  }, [leadId, fetchHistory]);
+
+  const addStatusChange = useCallback(async (from: string, to: string, _createdBy: string) => {
+    if (!leadId) return;
+    await fetchHistory(); // Refresh after backend processes the change
+  }, [leadId, fetchHistory]);
+
+  const addTemperatureChange = useCallback(async (from: string, to: string, _createdBy: string) => {
+    if (!leadId) return;
+    await fetchHistory();
+  }, [leadId, fetchHistory]);
+
+  const addContactAttempt = useCallback(async (description: string, _createdBy: string) => {
+    if (!leadId) return;
+    await fetchHistory();
+  }, [leadId, fetchHistory]);
+
+  const addMessageSent = useCallback(async (description: string, _createdBy: string) => {
+    if (!leadId) return;
+    await fetchHistory();
+  }, [leadId, fetchHistory]);
+
+  const addTransfer = useCallback(async (from: string, to: string, _createdBy: string) => {
+    if (!leadId) return;
+    await fetchHistory();
+  }, [leadId, fetchHistory]);
+
+  const addSaleRegistered = useCallback(async (saleData: Record<string, any>, _createdBy: string) => {
+    if (!leadId) return;
+    await fetchHistory();
+    await fetchProfile();
+  }, [leadId, fetchHistory, fetchProfile]);
+
+  const updateProfile = useCallback(async (data: Partial<LeadProfile>) => {
+    if (!leadId) return;
+    try {
+      await api.put(`/leads/${leadId}`, data);
+      await fetchProfile();
+    } catch (err) {
+      console.error('Error updating lead profile:', err);
+    }
+  }, [leadId, fetchProfile]);
 
   return {
-    history: leadId ? leadHistoryStore.getHistoryForLead(leadId) : [],
-    profile: leadId ? leadHistoryStore.getLeadProfile(leadId) : undefined,
-    historyCount: leadId ? leadHistoryStore.getHistoryCount(leadId) : 0,
-    addObservation: (description: string, createdBy: string) =>
-      leadId ? leadHistoryStore.addObservation(leadId, description, createdBy) : undefined,
-    addScheduleEvent: leadHistoryStore.addScheduleEvent,
-    addStatusChange: (from: string, to: string, createdBy: string) =>
-      leadId ? leadHistoryStore.addStatusChange(leadId, from, to, createdBy) : undefined,
-    addTemperatureChange: (from: string, to: string, createdBy: string) =>
-      leadId ? leadHistoryStore.addTemperatureChange(leadId, from, to, createdBy) : undefined,
-    addContactAttempt: (description: string, createdBy: string) =>
-      leadId ? leadHistoryStore.addContactAttempt(leadId, description, createdBy) : undefined,
-    addMessageSent: (description: string, createdBy: string) =>
-      leadId ? leadHistoryStore.addMessageSent(leadId, description, createdBy) : undefined,
-    addTransfer: (from: string, to: string, createdBy: string) =>
-      leadId ? leadHistoryStore.addTransfer(leadId, from, to, createdBy) : undefined,
-    addSaleRegistered: (saleData: Record<string, any>, createdBy: string) =>
-      leadId ? leadHistoryStore.addSaleRegistered(leadId, saleData, createdBy) : undefined,
-    updateProfile: (data: Partial<LeadProfile>) =>
-      leadId ? leadHistoryStore.updateLeadProfile(leadId, data) : undefined,
+    history,
+    profile,
+    loading,
+    historyCount: history.length,
+    addObservation,
+    addStatusChange,
+    addTemperatureChange,
+    addContactAttempt,
+    addMessageSent,
+    addTransfer,
+    addSaleRegistered,
+    updateProfile,
+    refreshHistory: fetchHistory,
   };
 }
+
+// Standalone store for non-hook usage
+export const leadHistoryStore = {
+  async getHistoryForLead(leadId: string): Promise<LeadHistoryEvent[]> {
+    try {
+      const res = await api.get(`/leads/${leadId}/history`);
+      return Array.isArray(res.data) ? res.data : [];
+    } catch {
+      return [];
+    }
+  },
+  async getLeadProfile(leadId: string): Promise<LeadProfile | undefined> {
+    try {
+      const res = await api.get(`/leads/${leadId}`);
+      return res.data;
+    } catch {
+      return undefined;
+    }
+  },
+  getHistoryCount(_leadId: string): number {
+    return 0; // Use the hook for reactive count
+  },
+  subscribe(_fn: () => void): () => void {
+    return () => { }; // No-op, use the hook instead
+  },
+};
 
 // Format event type for display
 export function formatHistoryEventType(type: HistoryEventType): string {
@@ -309,7 +230,10 @@ export function formatHistoryEventType(type: HistoryEventType): string {
     transfer: 'Transferência',
     sale_registered: 'Venda',
     contact_attempt: 'Contato',
-    message_sent: 'Mensagem',
+    message_sent: 'Mensagem Enviada',
+    message_received: 'Mensagem Recebida',
+    ai_interaction: 'IA',
+    assignment: 'Atribuição',
   };
   return labels[type] || type;
 }
@@ -327,6 +251,9 @@ export function getHistoryEventColor(type: HistoryEventType): string {
     sale_registered: 'text-success',
     contact_attempt: 'text-sky-500',
     message_sent: 'text-teal-500',
+    message_received: 'text-indigo-500',
+    ai_interaction: 'text-violet-500',
+    assignment: 'text-cyan-500',
   };
   return colors[type] || 'text-muted-foreground';
 }

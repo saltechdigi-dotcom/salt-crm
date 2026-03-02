@@ -1,5 +1,6 @@
 // Shared Support Tickets Store
 // This store is used to share support tickets between /outros and /super-admin
+import api from '@/lib/api';
 
 export type SupportType = 'tecnico' | 'financeiro' | 'comercial' | 'outro' | 'whatsapp' | 'funil' | 'ia';
 export type SupportPriority = 'baixa' | 'media' | 'alta' | 'critica';
@@ -34,7 +35,37 @@ const notifyListeners = () => {
 };
 
 export const supportTicketsApi = {
-  // Get all tickets
+  // Fetch all tickets from API
+  fetchAll: async (): Promise<SupportTicket[]> => {
+    try {
+      const res = await api.get('/support-tickets');
+      const data = res.data?.data || res.data || [];
+      const tickets: SupportTicket[] = (Array.isArray(data) ? data : []).map((t: any) => ({
+        id: t.id,
+        tenantId: t.tenantId || '',
+        tenantName: '',
+        userId: t.userId || '',
+        userName: t.user?.name || '',
+        type: mapBackendType(t.type),
+        subject: t.subject || '',
+        description: t.description || '',
+        priority: mapBackendPriority(t.priority),
+        status: mapBackendStatus(t.status),
+        createdAt: t.createdAt || '',
+        resolvedAt: t.resolvedAt,
+        resolvedBy: t.resolvedBy?.name,
+        assignedTo: t.assignedTo?.name,
+      }));
+      supportTicketsStore = tickets;
+      notifyListeners();
+      return tickets;
+    } catch (err) {
+      console.error('Error fetching support tickets:', err);
+      return [...supportTicketsStore];
+    }
+  },
+
+  // Get all tickets (local)
   getAll: (): SupportTicket[] => {
     return [...supportTicketsStore];
   },
@@ -49,7 +80,7 @@ export const supportTicketsApi = {
     return supportTicketsStore.filter(t => t.tenantId === tenantId);
   },
 
-  // Add new ticket
+  // Add new ticket (persists to API)
   add: (ticket: Omit<SupportTicket, 'id'>): SupportTicket => {
     const newTicket: SupportTicket = {
       ...ticket,
@@ -57,7 +88,23 @@ export const supportTicketsApi = {
     };
     supportTicketsStore = [newTicket, ...supportTicketsStore];
     notifyListeners();
-    console.log('Support ticket added:', newTicket);
+
+    // Fire-and-forget API call
+    api.post('/support-tickets', {
+      type: mapToBackendType(ticket.type),
+      subject: ticket.subject,
+      description: ticket.description,
+      priority: mapToBackendPriority(ticket.priority),
+    }).then(res => {
+      // Update local ID with real backend ID
+      const idx = supportTicketsStore.findIndex(t => t.id === newTicket.id);
+      if (idx !== -1 && res.data?.id) {
+        supportTicketsStore[idx] = { ...supportTicketsStore[idx], id: res.data.id };
+        supportTicketsStore = [...supportTicketsStore];
+        notifyListeners();
+      }
+    }).catch(err => console.error('Error saving ticket to API:', err));
+
     return newTicket;
   },
 
@@ -67,8 +114,17 @@ export const supportTicketsApi = {
     if (index === -1) return undefined;
 
     supportTicketsStore[index] = { ...supportTicketsStore[index], ...updates };
-    supportTicketsStore = [...supportTicketsStore]; // Trigger reactivity
+    supportTicketsStore = [...supportTicketsStore];
     notifyListeners();
+
+    // Fire-and-forget API call
+    api.put(`/support-tickets/${id}`, {
+      status: updates.status ? mapToBackendStatus(updates.status) : undefined,
+      priority: updates.priority ? mapToBackendPriority(updates.priority) : undefined,
+      subject: updates.subject,
+      description: updates.description,
+    }).catch(err => console.error('Error updating ticket:', err));
+
     return supportTicketsStore[index];
   },
 
@@ -77,6 +133,9 @@ export const supportTicketsApi = {
     const initialLength = supportTicketsStore.length;
     supportTicketsStore = supportTicketsStore.filter(t => t.id !== id);
     notifyListeners();
+
+    api.delete(`/support-tickets/${id}`).catch(err => console.error('Error deleting ticket:', err));
+
     return supportTicketsStore.length < initialLength;
   },
 
@@ -93,6 +152,35 @@ export const supportTicketsApi = {
     return { openTickets, criticalTickets };
   },
 };
+
+// Auto-fetch on first import
+supportTicketsApi.fetchAll();
+
+// Backend <-> Frontend type mappers
+function mapBackendType(t: string): SupportType {
+  const m: Record<string, SupportType> = { whatsapp: 'whatsapp', funnel: 'funil', ai: 'ia', billing: 'financeiro', technical: 'tecnico', other: 'outro' };
+  return m[t] || 'outro';
+}
+function mapToBackendType(t: SupportType): string {
+  const m: Record<SupportType, string> = { whatsapp: 'whatsapp', funil: 'funnel', ia: 'ai', financeiro: 'billing', tecnico: 'technical', outro: 'other', comercial: 'other' };
+  return m[t] || 'other';
+}
+function mapBackendPriority(p: string): SupportPriority {
+  const m: Record<string, SupportPriority> = { low: 'baixa', medium: 'media', high: 'alta', critical: 'critica' };
+  return m[p] || 'media';
+}
+function mapToBackendPriority(p: SupportPriority): string {
+  const m: Record<SupportPriority, string> = { baixa: 'low', media: 'medium', alta: 'high', critica: 'critical' };
+  return m[p] || 'medium';
+}
+function mapBackendStatus(s: string): SupportStatus {
+  const m: Record<string, SupportStatus> = { open: 'aberto', in_progress: 'em_atendimento', resolved: 'resolvido' };
+  return m[s] || 'aberto';
+}
+function mapToBackendStatus(s: SupportStatus): string {
+  const m: Record<SupportStatus, string> = { aberto: 'open', em_atendimento: 'in_progress', resolvido: 'resolved' };
+  return m[s] || 'open';
+}
 
 // Map category from Outros form to SupportType
 export const mapCategoryToType = (category: string): SupportType => {

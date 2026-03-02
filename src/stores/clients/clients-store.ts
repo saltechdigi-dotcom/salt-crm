@@ -1,6 +1,7 @@
 // Clients Store - SALT CRM
-// Estrutura alinhada com a tabela de leads
+// Connected to /leads API (clients = leads with convertedToClientAt)
 import { create } from 'zustand';
+import api from '@/lib/api';
 
 export interface Client {
   id: string;
@@ -11,7 +12,6 @@ export interface Client {
   status: 'Frio' | 'Morno' | 'Quente' | 'Qualificado' | 'Em Atendimento' | 'Em Negociação' | 'Fechado – Ganho' | 'Arquivado';
   createdAt: string;
   responsavel: string;
-  // Campos adicionais opcionais
   email?: string;
   product?: string;
   reference?: string;
@@ -30,30 +30,92 @@ export const statusColors: Record<string, string> = {
   'Arquivado': '#607D8B',
 };
 
+// Map backend temperature/stage to frontend status
+function mapLeadToStatus(lead: any): Client['status'] {
+  if (lead.stage?.name) return lead.stage.name as Client['status'];
+  if (lead.temperature === 'cold') return 'Frio';
+  if (lead.temperature === 'warm') return 'Morno';
+  if (lead.temperature === 'hot') return 'Quente';
+  return 'Frio';
+}
+
+// Map backend lead to Client
+function mapLeadToClient(lead: any): Client {
+  return {
+    id: lead.id,
+    name: lead.name || '',
+    phone: lead.phone || '',
+    origin: lead.origin?.name || lead.originId || '',
+    qualified: lead.qualifiedByAI || false,
+    status: mapLeadToStatus(lead),
+    createdAt: lead.createdAt ? new Date(lead.createdAt).toISOString().split('T')[0] : '',
+    responsavel: lead.assignedTo?.name || '',
+    email: lead.email || undefined,
+    product: lead.product || undefined,
+    reference: lead.reference || undefined,
+    notes: lead.observations || undefined,
+  };
+}
+
 interface ClientsState {
   clients: Client[];
+  loading: boolean;
+  fetchClients: () => Promise<void>;
   addClient: (client: Omit<Client, 'id' | 'createdAt'>) => void;
   updateClient: (id: string, data: Partial<Client>) => void;
   deleteClient: (id: string) => void;
   getClientById: (id: string) => Client | undefined;
 }
 
-// Mock data inicial
-const mockClients: Client[] = [];
-
 export const useClientsStore = create<ClientsState>((set, get) => ({
-  clients: mockClients,
+  clients: [],
+  loading: false,
 
-  addClient: (clientData) => {
-    const newClient: Client = {
-      ...clientData,
-      id: `client-${Date.now()}`,
-      createdAt: new Date().toISOString().split('T')[0],
-    };
-    set((state) => ({ clients: [...state.clients, newClient] }));
+  fetchClients: async () => {
+    set({ loading: true });
+    try {
+      const res = await api.get('/leads', { params: { limit: 500 } });
+      const data = res.data?.data || res.data || [];
+      const leads = Array.isArray(data) ? data : [];
+      set({ clients: leads.map(mapLeadToClient), loading: false });
+    } catch (err) {
+      console.error('Error fetching clients:', err);
+      set({ loading: false });
+    }
   },
 
-  updateClient: (id, data) => {
+  addClient: async (clientData) => {
+    try {
+      const res = await api.post('/leads', {
+        name: clientData.name,
+        phone: clientData.phone,
+        email: clientData.email,
+        reference: clientData.reference,
+      });
+      const newClient: Client = {
+        ...clientData,
+        id: res.data.id || `client-${Date.now()}`,
+        createdAt: new Date().toISOString().split('T')[0],
+      };
+      set((state) => ({ clients: [...state.clients, newClient] }));
+    } catch (err) {
+      console.error('Error creating client:', err);
+      // Fallback: add locally
+      const newClient: Client = {
+        ...clientData,
+        id: `client-${Date.now()}`,
+        createdAt: new Date().toISOString().split('T')[0],
+      };
+      set((state) => ({ clients: [...state.clients, newClient] }));
+    }
+  },
+
+  updateClient: async (id, data) => {
+    try {
+      await api.put(`/leads/${id}`, data);
+    } catch (err) {
+      console.error('Error updating client:', err);
+    }
     set((state) => ({
       clients: state.clients.map((client) =>
         client.id === id ? { ...client, ...data } : client
@@ -61,7 +123,12 @@ export const useClientsStore = create<ClientsState>((set, get) => ({
     }));
   },
 
-  deleteClient: (id) => {
+  deleteClient: async (id) => {
+    try {
+      await api.delete(`/leads/${id}`);
+    } catch (err) {
+      console.error('Error deleting client:', err);
+    }
     set((state) => ({
       clients: state.clients.filter((client) => client.id !== id),
     }));
@@ -71,6 +138,15 @@ export const useClientsStore = create<ClientsState>((set, get) => ({
     return get().clients.find((client) => client.id === id);
   },
 }));
+
+// Auto-fetch on first use
+let _fetched = false;
+useClientsStore.subscribe((state) => {
+  if (!_fetched && !state.loading && state.clients.length === 0) {
+    _fetched = true;
+    state.fetchClients();
+  }
+});
 
 // Export functions for CSV
 export function exportClientsToCSV(clients: Client[]): string {

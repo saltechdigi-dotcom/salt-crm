@@ -1,6 +1,8 @@
 // Lists Store - Import/Export de Listas de Leads
 // Estrutura alinhada com a tabela de leads
+// Connected to /leads API for persistence
 import { create } from 'zustand';
+import api from '@/lib/api';
 
 export interface ListItem {
   id: string;
@@ -29,30 +31,56 @@ export interface ImportedList {
 
 interface ListsState {
   lists: ImportedList[];
+  isLoading: boolean;
   addList: (list: Omit<ImportedList, 'id' | 'uploadedAt'>) => void;
   deleteList: (id: string) => void;
   getListById: (id: string) => ImportedList | undefined;
 }
 
-// Mock data inicial
-const mockLists: ImportedList[] = [];
-
 export const useListsStore = create<ListsState>((set, get) => ({
-  lists: mockLists,
+  lists: [],
+  isLoading: false,
 
-  addList: (listData) => {
+  addList: async (listData) => {
     const newList: ImportedList = {
       ...listData,
       id: `list-${Date.now()}`,
       uploadedAt: new Date().toISOString(),
     };
     set((state) => ({ lists: [...state.lists, newList] }));
+
+    // Persist each item as a lead in the backend (fire-and-forget, batch)
+    const items = listData.items || [];
+    if (items.length > 0) {
+      set({ isLoading: true });
+      const promises = items.map(item =>
+        api.post('/leads', {
+          name: item.name,
+          phone: item.phone,
+          originName: item.origin || 'Importação CSV',
+          email: item.email,
+          notes: item.notes,
+          qualifiedByAI: item.qualified,
+        }).catch(err => {
+          console.error(`Error importing lead ${item.name}:`, err);
+          return null;
+        })
+      );
+
+      // Process in batches of 10 to avoid overwhelming the server
+      for (let i = 0; i < promises.length; i += 10) {
+        await Promise.all(promises.slice(i, i + 10));
+      }
+      set({ isLoading: false });
+      console.log(`Lists: ${items.length} leads imported to backend`);
+    }
   },
 
   deleteList: (id) => {
     set((state) => ({
       lists: state.lists.filter((list) => list.id !== id),
     }));
+    // Note: individual leads created from import remain in the /leads table
   },
 
   getListById: (id) => {

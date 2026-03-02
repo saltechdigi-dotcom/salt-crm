@@ -14,6 +14,7 @@ router.post('/tenants', superAdminController.createTenant);
 router.put('/tenants/:id', superAdminController.updateTenant);
 router.post('/tenants/:id/suspend', superAdminController.suspendTenant);
 router.post('/tenants/:id/activate', superAdminController.activateTenant);
+router.delete('/tenants/:id', superAdminController.deleteTenant);
 
 // KPIs
 router.get('/kpis', superAdminController.getKPIs);

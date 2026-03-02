@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Header } from '@/components/ui/header';
 import { Button } from '@/components/ui/button';
@@ -37,6 +37,7 @@ import {
   RefreshCw,
   Fish,
 } from 'lucide-react';
+import api from '@/lib/api';
 
 interface Agent {
   id: string;
@@ -63,70 +64,96 @@ interface Agent {
 
 // Mock agents data com contadores separados
 const mockAgentsData: Agent[] = [
-  { 
-    id: '1', name: 'Damião', initials: 'D', 
-    email: 'damiao.silva@empresa.com', phone: '41 99639-4444', 
+  {
+    id: '1', name: 'Damião', initials: 'D',
+    email: 'damiao.silva@empresa.com', phone: '41 99639-4444',
     morningAssigned: true, afternoonAssigned: false,
-    morningActive: true, afternoonActive: false, 
-    morningPosition: 1, afternoonPosition: null, 
+    morningActive: true, afternoonActive: false,
+    morningPosition: 1, afternoonPosition: null,
     morningLeadsNaoQualificados: 5, afternoonLeadsNaoQualificados: 0,
     morningLeadsQualificados: 2, afternoonLeadsQualificados: 0
   },
-  { 
-    id: '2', name: 'Lucas Morais', initials: 'LM', 
-    email: 'lucas.morais@empresa.com', phone: '41 8883 2550', 
+  {
+    id: '2', name: 'Lucas Morais', initials: 'LM',
+    email: 'lucas.morais@empresa.com', phone: '41 8883 2550',
     morningAssigned: true, afternoonAssigned: true,
-    morningActive: true, afternoonActive: true, 
-    morningPosition: 2, afternoonPosition: 1, 
+    morningActive: true, afternoonActive: true,
+    morningPosition: 2, afternoonPosition: 1,
     morningLeadsNaoQualificados: 3, afternoonLeadsNaoQualificados: 4,
     morningLeadsQualificados: 1, afternoonLeadsQualificados: 2
   },
-  { 
-    id: '3', name: 'Ademir José', initials: 'AJ', 
-    email: 'ademir@empresa.com', phone: '41 9999-1111', 
+  {
+    id: '3', name: 'Ademir José', initials: 'AJ',
+    email: 'ademir@empresa.com', phone: '41 9999-1111',
     morningAssigned: false, afternoonAssigned: true,
-    morningActive: false, afternoonActive: true, 
-    morningPosition: null, afternoonPosition: 2, 
+    morningActive: false, afternoonActive: true,
+    morningPosition: null, afternoonPosition: 2,
     morningLeadsNaoQualificados: 0, afternoonLeadsNaoQualificados: 6,
     morningLeadsQualificados: 0, afternoonLeadsQualificados: 3
   },
-  { 
-    id: '4', name: 'Fernanda Costa', initials: 'FC', 
-    email: 'fernanda@empresa.com', phone: '41 9999-2222', 
+  {
+    id: '4', name: 'Fernanda Costa', initials: 'FC',
+    email: 'fernanda@empresa.com', phone: '41 9999-2222',
     morningAssigned: true, afternoonAssigned: true,
     morningActive: true, afternoonActive: false, // Exemplo: ativa manhã, pausada tarde
-    morningPosition: 3, afternoonPosition: null, 
+    morningPosition: 3, afternoonPosition: null,
     morningLeadsNaoQualificados: 4, afternoonLeadsNaoQualificados: 2,
     morningLeadsQualificados: 2, afternoonLeadsQualificados: 1
   },
-  { 
-    id: '5', name: 'Alexsandro', initials: 'A', 
-    email: 'alexsandro@empresa.com', phone: '41 9999-3333', 
+  {
+    id: '5', name: 'Alexsandro', initials: 'A',
+    email: 'alexsandro@empresa.com', phone: '41 9999-3333',
     morningAssigned: false, afternoonAssigned: false,
-    morningActive: false, afternoonActive: false, 
-    morningPosition: null, afternoonPosition: null, 
+    morningActive: false, afternoonActive: false,
+    morningPosition: null, afternoonPosition: null,
     morningLeadsNaoQualificados: 0, afternoonLeadsNaoQualificados: 0,
     morningLeadsQualificados: 0, afternoonLeadsQualificados: 0
   },
-  { 
-    id: '6', name: 'Roberto Silva', initials: 'RS', 
-    email: 'roberto@empresa.com', phone: '41 9999-4444', 
+  {
+    id: '6', name: 'Roberto Silva', initials: 'RS',
+    email: 'roberto@empresa.com', phone: '41 9999-4444',
     morningAssigned: false, afternoonAssigned: false,
-    morningActive: false, afternoonActive: false, 
-    morningPosition: null, afternoonPosition: null, 
+    morningActive: false, afternoonActive: false,
+    morningPosition: null, afternoonPosition: null,
     morningLeadsNaoQualificados: 2, afternoonLeadsNaoQualificados: 1,
     morningLeadsQualificados: 0, afternoonLeadsQualificados: 0
   },
-  { 
-    id: '7', name: 'Mariana Souza', initials: 'MS', 
-    email: 'mariana@empresa.com', phone: '41 9999-5555', 
+  {
+    id: '7', name: 'Mariana Souza', initials: 'MS',
+    email: 'mariana@empresa.com', phone: '41 9999-5555',
     morningAssigned: false, afternoonAssigned: false,
-    morningActive: false, afternoonActive: false, 
-    morningPosition: null, afternoonPosition: null, 
+    morningActive: false, afternoonActive: false,
+    morningPosition: null, afternoonPosition: null,
     morningLeadsNaoQualificados: 0, afternoonLeadsNaoQualificados: 0,
     morningLeadsQualificados: 0, afternoonLeadsQualificados: 0
   },
 ];
+
+// Map backend user to Agent (used when API data becomes available)
+function mapUserToAgent(u: any): Agent {
+  const name = u.name || 'Sem nome';
+  const parts = name.split(' ');
+  const initials = parts.length >= 2
+    ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
+    : name.substring(0, 2).toUpperCase();
+  return {
+    id: u.id,
+    name,
+    initials,
+    email: u.email || '',
+    phone: u.phone || '',
+    morningAssigned: false,
+    afternoonAssigned: false,
+    morningActive: false,
+    afternoonActive: false,
+    morningPosition: null,
+    afternoonPosition: null,
+    morningLeadsNaoQualificados: 0,
+    afternoonLeadsNaoQualificados: 0,
+    morningLeadsQualificados: 0,
+    afternoonLeadsQualificados: 0,
+  };
+}
 
 const Roleta: React.FC = () => {
   const { toast } = useToast();
@@ -134,10 +161,73 @@ const Roleta: React.FC = () => {
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [showDistributionConfig, setShowDistributionConfig] = useState(false);
   const [addingToPeriod, setAddingToPeriod] = useState<'morning' | 'afternoon' | null>(null);
-  const [agents, setAgents] = useState<Agent[]>(mockAgentsData);
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [agentsLoading, setAgentsLoading] = useState(true);
+
+  // Fetch agents from API
+  useEffect(() => {
+    setAgentsLoading(true);
+    api.get('/users')
+      .then(res => {
+        const data = res.data?.data || res.data || [];
+        const users: any[] = Array.isArray(data) ? data : [];
+        const mapped: Agent[] = users
+          .filter((u: any) => u.role === 'agent' && u.isActive !== false)
+          .map((u: any) => {
+            const name = u.name || 'Sem nome';
+            const parts = name.split(' ');
+            const initials = parts.length >= 2
+              ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
+              : name.substring(0, 2).toUpperCase();
+            return {
+              id: u.id,
+              name,
+              initials,
+              email: u.email || '',
+              phone: u.phone || '',
+              morningAssigned: false,
+              afternoonAssigned: false,
+              morningActive: false,
+              afternoonActive: false,
+              morningPosition: null,
+              afternoonPosition: null,
+              morningLeadsNaoQualificados: 0,
+              afternoonLeadsNaoQualificados: 0,
+              morningLeadsQualificados: 0,
+              afternoonLeadsQualificados: 0,
+            };
+          });
+        setAgents(mapped);
+      })
+      .catch(err => console.error('Error fetching users for roleta:', err))
+      .finally(() => setAgentsLoading(false));
+  }, []);
+
+  // Fetch distribution logs for lead counters
+  useEffect(() => {
+    api.get('/distribution/logs', { params: { limit: 500 } })
+      .then(res => {
+        const logs = res.data?.data || res.data || [];
+        if (!Array.isArray(logs) || logs.length === 0) return;
+        // Count leads per agent
+        const counts: Record<string, { total: number }> = {};
+        logs.forEach((log: any) => {
+          const uid = log.assignedToId;
+          if (!uid) return;
+          if (!counts[uid]) counts[uid] = { total: 0 };
+          counts[uid].total++;
+        });
+        setAgents(prev => prev.map(a => {
+          const c = counts[a.id];
+          if (!c) return a;
+          return { ...a, morningLeadsNaoQualificados: c.total };
+        }));
+      })
+      .catch(() => { /* distribution logs optional */ });
+  }, []);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
-  
+
   // Configuração do modo de distribuição
   const [distributionConfig, setDistributionConfig] = useState<DistributionConfigData>({
     mode: 'roleta',
@@ -147,7 +237,7 @@ const Roleta: React.FC = () => {
       { id: '2', name: 'Vendas Internas', active: true },
     ],
   });
-  
+
   const handleSaveDistributionConfig = (config: DistributionConfigData) => {
     setDistributionConfig(config);
     // Aqui salvaria no backend/n8n
@@ -155,7 +245,7 @@ const Roleta: React.FC = () => {
   };
 
   // Vendedores atribuídos a cada turno (ativos + inativos)
-  const morningAssignedAgents = useMemo(() => 
+  const morningAssignedAgents = useMemo(() =>
     agents.filter(a => a.morningAssigned).sort((a, b) => {
       // Ativos primeiro (ordenados por posição), depois inativos
       if (a.morningActive && !b.morningActive) return -1;
@@ -164,10 +254,10 @@ const Roleta: React.FC = () => {
         return (a.morningPosition || 0) - (b.morningPosition || 0);
       }
       return 0;
-    }), 
+    }),
     [agents]
   );
-  const afternoonAssignedAgents = useMemo(() => 
+  const afternoonAssignedAgents = useMemo(() =>
     agents.filter(a => a.afternoonAssigned).sort((a, b) => {
       if (a.afternoonActive && !b.afternoonActive) return -1;
       if (!a.afternoonActive && b.afternoonActive) return 1;
@@ -175,31 +265,31 @@ const Roleta: React.FC = () => {
         return (a.afternoonPosition || 0) - (b.afternoonPosition || 0);
       }
       return 0;
-    }), 
+    }),
     [agents]
   );
 
   const totalAgents = agents.length;
   const morningActiveCount = agents.filter(a => a.morningActive).length;
   const afternoonActiveCount = agents.filter(a => a.afternoonActive).length;
-  
+
   // Total de leads distribuídos
-  const totalLeadsDistribuidos = useMemo(() => 
+  const totalLeadsDistribuidos = useMemo(() =>
     agents.reduce((acc, a) => acc + a.morningLeadsNaoQualificados + a.afternoonLeadsNaoQualificados + a.morningLeadsQualificados + a.afternoonLeadsQualificados, 0),
     [agents]
   );
-  const totalLeadsQualificados = useMemo(() => 
+  const totalLeadsQualificados = useMemo(() =>
     agents.reduce((acc, a) => acc + a.morningLeadsQualificados + a.afternoonLeadsQualificados, 0),
     [agents]
   );
 
   // Vendedores disponíveis para adicionar (nunca atribuídos ao turno)
-  const availableForMorning = useMemo(() => 
-    agents.filter(a => !a.morningAssigned), 
+  const availableForMorning = useMemo(() =>
+    agents.filter(a => !a.morningAssigned),
     [agents]
   );
-  const availableForAfternoon = useMemo(() => 
-    agents.filter(a => !a.afternoonAssigned), 
+  const availableForAfternoon = useMemo(() =>
+    agents.filter(a => !a.afternoonAssigned),
     [agents]
   );
 
@@ -207,7 +297,7 @@ const Roleta: React.FC = () => {
   const handleDeactivateAgent = (agentId: string, period: 'morning' | 'afternoon') => {
     setAgents(prevAgents => {
       const removedPosition = prevAgents.find(a => a.id === agentId)?.[period === 'morning' ? 'morningPosition' : 'afternoonPosition'];
-      
+
       return prevAgents.map(agent => {
         if (agent.id === agentId) {
           // Desativa e remove posição, mas mantém assigned = true
@@ -228,7 +318,7 @@ const Roleta: React.FC = () => {
         return agent;
       });
     });
-    
+
     toast({
       title: 'Vendedor pausado',
       description: `Saiu da fila da ${period === 'morning' ? 'manhã' : 'tarde'}. Pode ser reativado a qualquer momento.`,
@@ -238,12 +328,12 @@ const Roleta: React.FC = () => {
   // Reativar vendedor já atribuído ao turno - volta ao final da fila
   const handleReactivateAgent = (agentId: string, period: 'morning' | 'afternoon') => {
     setAgents(prevAgents => {
-      const currentActiveCount = period === 'morning' 
-        ? prevAgents.filter(a => a.morningActive).length 
+      const currentActiveCount = period === 'morning'
+        ? prevAgents.filter(a => a.morningActive).length
         : prevAgents.filter(a => a.afternoonActive).length;
-      
+
       const newPosition = currentActiveCount + 1;
-      
+
       return prevAgents.map(agent => {
         if (agent.id === agentId) {
           if (period === 'morning') {
@@ -255,7 +345,7 @@ const Roleta: React.FC = () => {
         return agent;
       });
     });
-    
+
     toast({
       title: 'Vendedor reativado',
       description: `Voltou ao final da fila da ${period === 'morning' ? 'manhã' : 'tarde'}.`,
@@ -265,12 +355,12 @@ const Roleta: React.FC = () => {
   // Adicionar novo vendedor ao turno (primeira vez)
   const handleAddAgentToShift = (agentId: string, period: 'morning' | 'afternoon') => {
     setAgents(prevAgents => {
-      const currentActiveCount = period === 'morning' 
-        ? prevAgents.filter(a => a.morningActive).length 
+      const currentActiveCount = period === 'morning'
+        ? prevAgents.filter(a => a.morningActive).length
         : prevAgents.filter(a => a.afternoonActive).length;
-      
+
       const newPosition = currentActiveCount + 1;
-      
+
       return prevAgents.map(agent => {
         if (agent.id === agentId) {
           if (period === 'morning') {
@@ -282,19 +372,19 @@ const Roleta: React.FC = () => {
         return agent;
       });
     });
-    
+
     toast({
       title: 'Vendedor adicionado',
       description: `Entrou no final da fila da ${period === 'morning' ? 'manhã' : 'tarde'}.`,
     });
-    
+
     setAddingToPeriod(null);
   };
 
   // Filtro de busca
   const filteredAgents = useMemo(() => {
     let filtered = addingToPeriod === 'morning' ? availableForMorning : availableForAfternoon;
-    
+
     if (searchTerm) {
       filtered = filtered.filter(agent =>
         agent.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -302,7 +392,7 @@ const Roleta: React.FC = () => {
         agent.phone.includes(searchTerm)
       );
     }
-    
+
     return filtered;
   }, [addingToPeriod, availableForMorning, availableForAfternoon, searchTerm]);
 
@@ -320,12 +410,12 @@ const Roleta: React.FC = () => {
   };
 
   // Componente de Card do Vendedor (ativo ou inativo)
-  const AgentCard = ({ 
-    agent, 
+  const AgentCard = ({
+    agent,
     period,
     isActive
-  }: { 
-    agent: Agent; 
+  }: {
+    agent: Agent;
     period: 'morning' | 'afternoon';
     isActive: boolean;
   }) => {
@@ -335,11 +425,11 @@ const Roleta: React.FC = () => {
     const periodColor = period === 'morning' ? '#F5A15D' : '#5B8DEF';
 
     return (
-      <div 
+      <div
         className={cn(
           "bg-card rounded-xl border p-3 transition-all",
-          isActive 
-            ? "border-border/20" 
+          isActive
+            ? "border-border/20"
             : "border-dashed border-border/30 opacity-60"
         )}
         style={{ boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.04)' : 'none' }}
@@ -347,14 +437,14 @@ const Roleta: React.FC = () => {
         <div className="flex items-center gap-2.5">
           <div className="relative">
             <div className={cn(
-              "w-9 h-9 rounded-full flex items-center justify-center text-white font-medium text-[11px]", 
+              "w-9 h-9 rounded-full flex items-center justify-center text-white font-medium text-[11px]",
               getInitialsColor(agent.initials),
               !isActive && "grayscale opacity-70"
             )}>
               {agent.initials}
             </div>
             {isActive && position && (
-              <div 
+              <div
                 className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold text-white"
                 style={{ backgroundColor: periodColor }}
               >
@@ -418,8 +508,8 @@ const Roleta: React.FC = () => {
       <p className="text-[12px] text-muted-foreground/50 mb-2">
         Nenhum vendedor ativo no período da {period === 'morning' ? 'manhã' : 'tarde'}
       </p>
-      <Button 
-        size="sm" 
+      <Button
+        size="sm"
         variant="outline"
         onClick={() => setAddingToPeriod(period)}
         className="gap-1.5 h-7 text-[11px] border-border/30"
@@ -441,12 +531,12 @@ const Roleta: React.FC = () => {
             <h1 className="text-[18px] font-semibold text-foreground/90">
               {distributionConfig.mode === 'roleta' ? 'Roleta' : 'Pescaria'}
             </h1>
-            <Badge 
-              variant="outline" 
+            <Badge
+              variant="outline"
               className={cn(
                 "text-[10px] h-5 gap-1",
-                distributionConfig.mode === 'roleta' 
-                  ? "border-[#F5A15D]/40 text-[#F5A15D]" 
+                distributionConfig.mode === 'roleta'
+                  ? "border-[#F5A15D]/40 text-[#F5A15D]"
                   : "border-[#5B8DEF]/40 text-[#5B8DEF]"
               )}
             >
@@ -474,8 +564,8 @@ const Roleta: React.FC = () => {
               onClick={() => setIsSystemActive(!isSystemActive)}
               className={cn(
                 "gap-1.5 h-7 text-[11px] font-medium px-2.5 border-border/30",
-                isSystemActive 
-                  ? "bg-[#4CAF50]/10 text-[#4CAF50] border-[#4CAF50]/30 hover:bg-[#4CAF50]/15" 
+                isSystemActive
+                  ? "bg-[#4CAF50]/10 text-[#4CAF50] border-[#4CAF50]/30 hover:bg-[#4CAF50]/15"
                   : "bg-muted/30 text-muted-foreground"
               )}
             >
@@ -555,10 +645,10 @@ const Roleta: React.FC = () => {
                 <Badge variant="secondary" className="bg-[#F5A15D]/10 text-[#F5A15D] text-[10px] h-5 px-1.5 font-medium border-0">
                   {morningActiveCount} ativo{morningActiveCount !== 1 ? 's' : ''}
                 </Badge>
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  className="gap-1 h-6 text-[10px] px-2 border-border/30" 
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1 h-6 text-[10px] px-2 border-border/30"
                   onClick={() => setAddingToPeriod('morning')}
                 >
                   <Plus className="w-2.5 h-2.5" />
@@ -589,10 +679,10 @@ const Roleta: React.FC = () => {
                 <Badge variant="secondary" className="bg-[#5B8DEF]/10 text-[#5B8DEF] text-[10px] h-5 px-1.5 font-medium border-0">
                   {afternoonActiveCount} ativo{afternoonActiveCount !== 1 ? 's' : ''}
                 </Badge>
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  className="gap-1 h-6 text-[10px] px-2 border-border/30" 
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1 h-6 text-[10px] px-2 border-border/30"
                   onClick={() => setAddingToPeriod('afternoon')}
                 >
                   <Plus className="w-2.5 h-2.5" />
@@ -653,20 +743,20 @@ const Roleta: React.FC = () => {
                   <div className="text-center py-8">
                     <UserCheck className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
                     <p className="text-[12px] text-muted-foreground/50">
-                      {searchTerm 
-                        ? 'Nenhum vendedor encontrado' 
+                      {searchTerm
+                        ? 'Nenhum vendedor encontrado'
                         : 'Todos os vendedores já estão neste período'}
                     </p>
                   </div>
                 ) : (
                   filteredAgents.map((agent) => (
-                    <div 
-                      key={agent.id} 
+                    <div
+                      key={agent.id}
                       className="flex items-center justify-between p-3 rounded-lg border border-border/20 bg-card hover:bg-muted/20 transition-colors"
                     >
                       <div className="flex items-center gap-2.5">
                         <div className={cn(
-                          "w-8 h-8 rounded-full flex items-center justify-center text-white font-medium text-[10px]", 
+                          "w-8 h-8 rounded-full flex items-center justify-center text-white font-medium text-[10px]",
                           getInitialsColor(agent.initials)
                         )}>
                           {agent.initials}
@@ -695,10 +785,10 @@ const Roleta: React.FC = () => {
               <p className="text-[10px] text-muted-foreground/50">
                 {filteredAgents.length} vendedor{filteredAgents.length !== 1 ? 'es' : ''} disponível{filteredAgents.length !== 1 ? 'eis' : ''}
               </p>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => setAddingToPeriod(null)} 
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setAddingToPeriod(null)}
                 className="h-7 text-[11px] border-border/30"
               >
                 Fechar
@@ -782,18 +872,18 @@ const Roleta: React.FC = () => {
                 {agents
                   .filter(agent => {
                     // Filtro de busca
-                    const matchSearch = !searchTerm || 
+                    const matchSearch = !searchTerm ||
                       agent.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                       agent.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
                       agent.phone.includes(searchTerm);
-                    
+
                     // Filtro de tipo
                     let matchType = true;
                     if (filterType === 'morning') matchType = agent.morningActive && !agent.afternoonActive;
                     if (filterType === 'afternoon') matchType = !agent.morningActive && agent.afternoonActive;
                     if (filterType === 'both') matchType = agent.morningActive && agent.afternoonActive;
                     if (filterType === 'inactive') matchType = !agent.morningActive && !agent.afternoonActive;
-                    
+
                     return matchSearch && matchType;
                   })
                   .map((agent) => (
@@ -850,10 +940,10 @@ const Roleta: React.FC = () => {
 
             {/* Footer */}
             <div className="flex items-center justify-end pt-3 border-t border-border/20 mt-3">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => setShowConfigModal(false)} 
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowConfigModal(false)}
                 className="h-7 text-[11px] border-border/30"
               >
                 Fechar
@@ -861,7 +951,7 @@ const Roleta: React.FC = () => {
             </div>
           </DialogContent>
         </Dialog>
-        
+
         {/* Modal de Configuração de Distribuição */}
         <DistributionConfig
           open={showDistributionConfig}
