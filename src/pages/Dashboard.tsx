@@ -89,12 +89,8 @@ interface TableLead {
   produto?: string;
 }
 
-// Mock data para tabelas (igual ao Funil)
-const tableLeadsFunil: TableLead[] = [];
-
-const tableLeadsCarteira: TableLead[] = [];
-
-const tableLeadsProspeccao: TableLead[] = [];
+// NOTE: tableLeadsFunil, tableLeadsCarteira, tableLeadsProspeccao are now
+// derived from apiLeads inside the component using useMemo (see mapApiLeadsToTableLeads)
 
 // Canais de comunicacao default para origem do lead
 const DEFAULT_ORIGINS: { id: string; name: string }[] = [
@@ -157,6 +153,42 @@ const Dashboard: React.FC = () => {
       .catch(err => console.error('Error fetching leads:', err))
       .finally(() => setLeadsLoading(false));
   }, []);
+
+  // ========== MAP API LEADS TO TABLE FORMAT ==========
+  const mapLeadToTableLead = (lead: any): TableLead => ({
+    id: lead.id || '',
+    name: lead.name || lead.clientName || 'Sem nome',
+    phone: lead.phone || lead.whatsapp || '',
+    origin: lead.source || lead.origin || 'WhatsApp',
+    status: lead.lifecycleStatus || lead.status || 'frio',
+    statusColor: (() => {
+      const s = (lead.lifecycleStatus || lead.status || 'frio').toLowerCase();
+      if (s.includes('frio')) return '#5B8DEF';
+      if (s.includes('morno')) return '#F5A15D';
+      if (s.includes('quente')) return '#E96A6A';
+      if (s.includes('qualificado')) return '#4FC3B5';
+      if (s.includes('atendimento')) return '#9B7CF4';
+      if (s.includes('negocia')) return '#F4C95D';
+      if (s.includes('ganho')) return '#4CAF50';
+      if (s.includes('perdido')) return '#9E9E9E';
+      if (s.includes('arquivado')) return '#607D8B';
+      return '#5B8DEF';
+    })(),
+    qualified: lead.qualifiedByAI || false,
+    dataCriacao: lead.createdAt ? new Date(lead.createdAt).toLocaleDateString('pt-BR') : '',
+    ultInt: lead.lastInteractionAt ? new Date(lead.lastInteractionAt).toLocaleDateString('pt-BR') : '-',
+    vendedor: lead.assignedTo?.name || lead.assignedToName || '-',
+    gerente: lead.manager?.name || lead.managerName || '-',
+    resumo: lead.aiSummary || lead.notes || '',
+    produto: lead.interestedProduct || '',
+  });
+
+  // Derive table leads from API data
+  const tableLeadsFunil = useMemo(() => apiLeads.map(mapLeadToTableLead), [apiLeads]);
+  const tableLeadsCarteira = useMemo(() =>
+    apiLeads.filter(l => l.assignedToId).map(mapLeadToTableLead), [apiLeads]);
+  const tableLeadsProspeccao = useMemo(() =>
+    apiLeads.filter(l => !l.assignedToId).map(mapLeadToTableLead), [apiLeads]);
 
   // ========== NPS STATS FROM API ==========
   const [npsStats, setNpsStats] = useState<{
