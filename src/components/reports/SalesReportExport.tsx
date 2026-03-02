@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Calendar, FileSpreadsheet, FileText, Download, Filter, Users, CreditCard, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { mockSales, Sale } from '@/stores/sales';
+import { Sale } from '@/stores/sales';
+import api from '@/lib/api';
 
 interface SalesReportExportProps {
   open: boolean;
@@ -42,7 +43,21 @@ const paymentMethodLabels: Record<string, string> = {
 
 export const SalesReportExport: React.FC<SalesReportExportProps> = ({ open, onClose }) => {
   const [isExporting, setIsExporting] = useState(false);
-  
+
+  // Sales from API
+  const [allSales, setAllSales] = useState<Sale[]>([]);
+
+  useEffect(() => {
+    if (open) {
+      api.get('/sales')
+        .then(res => {
+          const data = Array.isArray(res.data) ? res.data : res.data?.data || [];
+          setAllSales(data);
+        })
+        .catch(err => console.error('Error fetching sales for report:', err));
+    }
+  }, [open]);
+
   // Filter states
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -64,8 +79,8 @@ export const SalesReportExport: React.FC<SalesReportExportProps> = ({ open, onCl
 
   // Get filtered sales data
   const filteredSales = useMemo(() => {
-    let sales = [...mockSales];
-    
+    let sales = [...allSales];
+
     // Filter by date
     if (startDate) {
       const start = new Date(startDate);
@@ -76,23 +91,23 @@ export const SalesReportExport: React.FC<SalesReportExportProps> = ({ open, onCl
       end.setHours(23, 59, 59, 999);
       sales = sales.filter(s => new Date(s.createdAt) <= end);
     }
-    
+
     // Filter by vendedor
     if (selectedVendedor !== 'all') {
       sales = sales.filter(s => s.agentId === selectedVendedor);
     }
-    
+
     // Filter by team (through agents)
     if (selectedTeam !== 'all') {
       const teamAgentIds = mockVendedores.filter(v => v.teamId === selectedTeam).map(v => v.id);
       sales = sales.filter(s => teamAgentIds.includes(s.agentId));
     }
-    
+
     // Filter by payment method
     if (selectedPaymentMethod !== 'all') {
       sales = sales.filter(s => s.paymentMethod === selectedPaymentMethod);
     }
-    
+
     return sales;
   }, [startDate, endDate, selectedTeam, selectedVendedor, selectedPaymentMethod]);
 
@@ -104,11 +119,11 @@ export const SalesReportExport: React.FC<SalesReportExportProps> = ({ open, onCl
       sale.client?.document || '-',
       sale.client?.phone || sale.leadPhone,
       sale.client?.email || '-',
-      sale.productSold,
+      sale.productName,
       sale.productCode || '-',
       sale.saleValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
       paymentMethodLabels[sale.paymentMethod] || sale.paymentMethod,
-      sale.paymentCondition === 'parcelado' ? `${sale.installments}x` : 'À Vista',
+      sale.paymentCondition === 'installment' ? `${sale.installments}x` : 'À Vista',
       new Date(sale.saleDate || sale.createdAt).toLocaleDateString('pt-BR'),
       sale.agentName,
       sale.managerName,
@@ -139,19 +154,19 @@ export const SalesReportExport: React.FC<SalesReportExportProps> = ({ open, onCl
   // Export to CSV
   const exportToCSV = () => {
     setIsExporting(true);
-    
+
     try {
       const rows = filteredSales.map(saleToRow);
       const csvContent = [
         csvHeaders.join(';'),
         ...rows.map(row => row.map(cell => `"${cell}"`).join(';')),
       ].join('\n');
-      
+
       // Add BOM for Excel to recognize UTF-8
       const BOM = '\uFEFF';
       const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
-      
+
       const link = document.createElement('a');
       link.href = url;
       link.download = `relatorio_vendas_${new Date().toISOString().split('T')[0]}.csv`;
@@ -159,7 +174,7 @@ export const SalesReportExport: React.FC<SalesReportExportProps> = ({ open, onCl
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      
+
       toast.success(`Relatório CSV exportado com ${filteredSales.length} vendas`);
     } catch (error) {
       toast.error('Erro ao exportar relatório CSV');
@@ -171,21 +186,21 @@ export const SalesReportExport: React.FC<SalesReportExportProps> = ({ open, onCl
   // Export to Excel (XLSX as CSV with .xlsx extension - basic approach)
   const exportToExcel = () => {
     setIsExporting(true);
-    
+
     try {
       const rows = filteredSales.map(saleToRow);
-      
+
       // Create tab-separated content for Excel compatibility
       const excelContent = [
         csvHeaders.join('\t'),
         ...rows.map(row => row.join('\t')),
       ].join('\n');
-      
+
       // Add BOM for Excel to recognize UTF-8
       const BOM = '\uFEFF';
       const blob = new Blob([BOM + excelContent], { type: 'application/vnd.ms-excel;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
-      
+
       const link = document.createElement('a');
       link.href = url;
       link.download = `relatorio_vendas_${new Date().toISOString().split('T')[0]}.xls`;
@@ -193,7 +208,7 @@ export const SalesReportExport: React.FC<SalesReportExportProps> = ({ open, onCl
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      
+
       toast.success(`Relatório Excel exportado com ${filteredSales.length} vendas`);
     } catch (error) {
       toast.error('Erro ao exportar relatório Excel');
@@ -207,7 +222,7 @@ export const SalesReportExport: React.FC<SalesReportExportProps> = ({ open, onCl
     const totalValue = filteredSales.reduce((acc, s) => acc + s.saleValue, 0);
     const validated = filteredSales.filter(s => s.status === 'validated').length;
     const pending = filteredSales.filter(s => s.status === 'pending_manager').length;
-    
+
     return { totalValue, validated, pending, count: filteredSales.length };
   }, [filteredSales]);
 
