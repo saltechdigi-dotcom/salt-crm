@@ -1,57 +1,89 @@
+// ==========================================
+// LABELS/TAGS STORE — Conectado à API real
+// Usa /api/v1/tags para CRUD
+// ==========================================
+
 import { create } from 'zustand';
+import api from '@/lib/api';
 
 export interface Label {
   id: string;
   name: string;
   color: string;
+  entityType?: string;
   createdAt: string;
+  _count?: { leadTags: number };
 }
 
 interface LabelsState {
   labels: Label[];
-  addLabel: (name: string, color: string) => void;
-  removeLabel: (id: string) => void;
-  updateLabel: (id: string, name: string, color: string) => void;
+  loading: boolean;
+  loaded: boolean;
+  fetchLabels: () => Promise<void>;
+  addLabel: (name: string, color: string) => Promise<void>;
+  removeLabel: (id: string) => Promise<void>;
+  updateLabel: (id: string, name: string, color: string) => Promise<void>;
 }
 
-// Mock initial labels
-const initialLabels: Label[] = [
-  { id: '1', name: 'VIP', color: '#F5A15D', createdAt: '2024-01-15' },
-  { id: '2', name: 'Urgente', color: '#E96A6A', createdAt: '2024-01-16' },
-  { id: '3', name: 'Novo', color: '#4CAF50', createdAt: '2024-01-17' },
-  { id: '4', name: 'Premium', color: '#9B7CF4', createdAt: '2024-01-18' },
-];
+export const useLabelsStore = create<LabelsState>((set, get) => ({
+  labels: [],
+  loading: false,
+  loaded: false,
 
-export const useLabelsStore = create<LabelsState>((set) => ({
-  labels: initialLabels,
-  
-  addLabel: (name: string, color: string) => {
-    const newLabel: Label = {
-      id: Date.now().toString(),
-      name,
-      color,
-      createdAt: new Date().toISOString().split('T')[0],
-    };
-    set((state) => ({ labels: [...state.labels, newLabel] }));
+  fetchLabels: async () => {
+    // Avoid refetching if already loaded
+    if (get().loaded && get().labels.length > 0) return;
+
+    set({ loading: true });
+    try {
+      const { data } = await api.get('/tags');
+      const labels = Array.isArray(data) ? data : (data.data || data.items || []);
+      set({ labels, loaded: true });
+    } catch (error) {
+      console.error('[LabelsStore] Error fetching tags:', error);
+    } finally {
+      set({ loading: false });
+    }
   },
-  
-  removeLabel: (id: string) => {
-    set((state) => ({ labels: state.labels.filter(l => l.id !== id) }));
+
+  addLabel: async (name: string, color: string) => {
+    try {
+      const { data } = await api.post('/tags', { name, color });
+      set((state) => ({ labels: [...state.labels, data] }));
+    } catch (error) {
+      console.error('[LabelsStore] Error creating tag:', error);
+      throw error;
+    }
   },
-  
-  updateLabel: (id: string, name: string, color: string) => {
-    set((state) => ({
-      labels: state.labels.map(l => 
-        l.id === id ? { ...l, name, color } : l
-      ),
-    }));
+
+  removeLabel: async (id: string) => {
+    try {
+      await api.delete(`/tags/${id}`);
+      set((state) => ({ labels: state.labels.filter(l => l.id !== id) }));
+    } catch (error) {
+      console.error('[LabelsStore] Error deleting tag:', error);
+      throw error;
+    }
+  },
+
+  updateLabel: async (id: string, name: string, color: string) => {
+    try {
+      const { data } = await api.put(`/tags/${id}`, { name, color });
+      set((state) => ({
+        labels: state.labels.map(l => l.id === id ? { ...l, ...data } : l),
+      }));
+    } catch (error) {
+      console.error('[LabelsStore] Error updating tag:', error);
+      throw error;
+    }
   },
 }));
 
-// Export API functions for external use
+// Export API functions for external use (backwards compatible)
 export const labelsApi = {
   getLabels: () => useLabelsStore.getState().labels,
   addLabel: (name: string, color: string) => useLabelsStore.getState().addLabel(name, color),
   removeLabel: (id: string) => useLabelsStore.getState().removeLabel(id),
   updateLabel: (id: string, name: string, color: string) => useLabelsStore.getState().updateLabel(id, name, color),
+  fetchLabels: () => useLabelsStore.getState().fetchLabels(),
 };

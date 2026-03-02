@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { IOSCard } from '@/components/ui/ios-card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,53 +34,70 @@ const colorPalette = [
 ];
 
 export const EtiquetasSection: React.FC<EtiquetasSectionProps> = ({ onBack }) => {
-  const { labels, addLabel, removeLabel, updateLabel } = useLabelsStore();
-  
+  const { labels, loading, addLabel, removeLabel, updateLabel, fetchLabels } = useLabelsStore();
+
+  // Load labels from API on mount
+  useEffect(() => {
+    fetchLabels();
+  }, [fetchLabels]);
+
   // Modal states
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  
+
   // Form states
   const [newLabelName, setNewLabelName] = useState('');
   const [newLabelColor, setNewLabelColor] = useState(colorPalette[0]);
   const [editingLabel, setEditingLabel] = useState<LabelType | null>(null);
   const [deletingLabel, setDeletingLabel] = useState<LabelType | null>(null);
 
-  const handleCreateLabel = () => {
+  const handleCreateLabel = async () => {
     if (!newLabelName.trim()) {
       toast.error('Informe um nome para a etiqueta');
       return;
     }
-    
-    addLabel(newLabelName.trim(), newLabelColor);
-    toast.success(`Etiqueta "${newLabelName}" criada com sucesso!`);
-    setNewLabelName('');
-    setNewLabelColor(colorPalette[0]);
-    setShowCreateModal(false);
+
+    try {
+      await addLabel(newLabelName.trim(), newLabelColor);
+      toast.success(`Etiqueta "${newLabelName}" criada com sucesso!`);
+      setNewLabelName('');
+      setNewLabelColor(colorPalette[0]);
+      setShowCreateModal(false);
+    } catch {
+      toast.error('Erro ao criar etiqueta. Tente novamente.');
+    }
   };
 
-  const handleEditLabel = () => {
+  const handleEditLabel = async () => {
     if (!editingLabel || !newLabelName.trim()) {
       toast.error('Informe um nome para a etiqueta');
       return;
     }
-    
-    updateLabel(editingLabel.id, newLabelName.trim(), newLabelColor);
-    toast.success(`Etiqueta atualizada com sucesso!`);
-    setEditingLabel(null);
-    setNewLabelName('');
-    setNewLabelColor(colorPalette[0]);
-    setShowEditModal(false);
+
+    try {
+      await updateLabel(editingLabel.id, newLabelName.trim(), newLabelColor);
+      toast.success(`Etiqueta atualizada com sucesso!`);
+      setEditingLabel(null);
+      setNewLabelName('');
+      setNewLabelColor(colorPalette[0]);
+      setShowEditModal(false);
+    } catch {
+      toast.error('Erro ao atualizar etiqueta. Tente novamente.');
+    }
   };
 
-  const handleDeleteLabel = () => {
+  const handleDeleteLabel = async () => {
     if (!deletingLabel) return;
-    
-    removeLabel(deletingLabel.id);
-    toast.success(`Etiqueta "${deletingLabel.name}" excluída`);
-    setDeletingLabel(null);
-    setShowDeleteModal(false);
+
+    try {
+      await removeLabel(deletingLabel.id);
+      toast.success(`Etiqueta "${deletingLabel.name}" excluída`);
+      setDeletingLabel(null);
+      setShowDeleteModal(false);
+    } catch {
+      toast.error('Erro ao excluir etiqueta. Tente novamente.');
+    }
   };
 
   const openEditModal = (label: LabelType) => {
@@ -99,7 +116,7 @@ export const EtiquetasSection: React.FC<EtiquetasSectionProps> = ({ onBack }) =>
   const SubHeader = ({ title, onBack }: { title: string; onBack: () => void }) => (
     <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border/10 pt-[var(--safe-area-top)]">
       <div className="container flex items-center gap-3 h-12">
-        <button 
+        <button
           onClick={onBack}
           className="flex items-center gap-1 text-[13px] font-medium text-primary hover:text-primary/80 transition-colors -ml-1 active:scale-95 transition-transform min-h-[44px] min-w-[44px] justify-center"
         >
@@ -114,7 +131,7 @@ export const EtiquetasSection: React.FC<EtiquetasSectionProps> = ({ onBack }) =>
   return (
     <div className="min-h-screen bg-background pb-[var(--safe-area-bottom)]">
       <SubHeader title="Etiquetas" onBack={onBack} />
-      
+
       <main className="container py-4 space-y-4">
         {/* Info Banner */}
         <div className="bg-primary/5 rounded-xl p-4 flex items-start gap-3">
@@ -130,7 +147,7 @@ export const EtiquetasSection: React.FC<EtiquetasSectionProps> = ({ onBack }) =>
         </div>
 
         {/* Create Button */}
-        <Button 
+        <Button
           className="w-full h-11 text-[14px] gap-2"
           onClick={() => setShowCreateModal(true)}
         >
@@ -149,7 +166,7 @@ export const EtiquetasSection: React.FC<EtiquetasSectionProps> = ({ onBack }) =>
           ) : (
             labels.map((label) => (
               <div key={label.id} className="flex items-center gap-3 p-4">
-                <div 
+                <div
                   className="w-4 h-4 rounded-full shrink-0"
                   style={{ backgroundColor: label.color }}
                 />
@@ -187,7 +204,7 @@ export const EtiquetasSection: React.FC<EtiquetasSectionProps> = ({ onBack }) =>
               Crie uma etiqueta para organizar suas conversas
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label className="text-[13px]">Nome da Etiqueta</Label>
@@ -198,18 +215,17 @@ export const EtiquetasSection: React.FC<EtiquetasSectionProps> = ({ onBack }) =>
                 className="h-11"
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label className="text-[13px]">Cor</Label>
               <div className="flex flex-wrap gap-2">
                 {colorPalette.map((color) => (
                   <button
                     key={color}
-                    className={`w-8 h-8 rounded-full transition-all ${
-                      newLabelColor === color 
-                        ? 'ring-2 ring-offset-2 ring-primary scale-110' 
+                    className={`w-8 h-8 rounded-full transition-all ${newLabelColor === color
+                        ? 'ring-2 ring-offset-2 ring-primary scale-110'
                         : 'hover:scale-105'
-                    }`}
+                      }`}
                     style={{ backgroundColor: color }}
                     onClick={() => setNewLabelColor(color)}
                   />
@@ -220,7 +236,7 @@ export const EtiquetasSection: React.FC<EtiquetasSectionProps> = ({ onBack }) =>
             {/* Preview */}
             <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg">
               <span className="text-[12px] text-muted-foreground">Prévia:</span>
-              <span 
+              <span
                 className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-white text-[12px] font-medium"
                 style={{ backgroundColor: newLabelColor }}
               >
@@ -229,7 +245,7 @@ export const EtiquetasSection: React.FC<EtiquetasSectionProps> = ({ onBack }) =>
               </span>
             </div>
           </div>
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreateModal(false)}>
               Cancelar
@@ -250,7 +266,7 @@ export const EtiquetasSection: React.FC<EtiquetasSectionProps> = ({ onBack }) =>
               Altere o nome ou cor da etiqueta
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label className="text-[13px]">Nome da Etiqueta</Label>
@@ -261,18 +277,17 @@ export const EtiquetasSection: React.FC<EtiquetasSectionProps> = ({ onBack }) =>
                 className="h-11"
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label className="text-[13px]">Cor</Label>
               <div className="flex flex-wrap gap-2">
                 {colorPalette.map((color) => (
                   <button
                     key={color}
-                    className={`w-8 h-8 rounded-full transition-all ${
-                      newLabelColor === color 
-                        ? 'ring-2 ring-offset-2 ring-primary scale-110' 
+                    className={`w-8 h-8 rounded-full transition-all ${newLabelColor === color
+                        ? 'ring-2 ring-offset-2 ring-primary scale-110'
                         : 'hover:scale-105'
-                    }`}
+                      }`}
                     style={{ backgroundColor: color }}
                     onClick={() => setNewLabelColor(color)}
                   />
@@ -283,7 +298,7 @@ export const EtiquetasSection: React.FC<EtiquetasSectionProps> = ({ onBack }) =>
             {/* Preview */}
             <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg">
               <span className="text-[12px] text-muted-foreground">Prévia:</span>
-              <span 
+              <span
                 className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-white text-[12px] font-medium"
                 style={{ backgroundColor: newLabelColor }}
               >
@@ -292,7 +307,7 @@ export const EtiquetasSection: React.FC<EtiquetasSectionProps> = ({ onBack }) =>
               </span>
             </div>
           </div>
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEditModal(false)}>
               Cancelar
@@ -313,7 +328,7 @@ export const EtiquetasSection: React.FC<EtiquetasSectionProps> = ({ onBack }) =>
               Tem certeza que deseja excluir a etiqueta "{deletingLabel?.name}"? Esta ação não pode ser desfeita.
             </DialogDescription>
           </DialogHeader>
-          
+
           <DialogFooter className="mt-4">
             <Button variant="outline" onClick={() => setShowDeleteModal(false)}>
               Cancelar

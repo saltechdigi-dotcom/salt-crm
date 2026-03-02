@@ -1,16 +1,20 @@
 // ==========================================
 // SISTEMA DE VENDAS COM VALIDAÇÃO HIERÁRQUICA
+// Conectado à API real: /api/v1/sales
 // ==========================================
+
+import { useState, useEffect, useCallback } from 'react';
+import api from '@/lib/api';
 
 export type SaleStatus = 'pending_manager' | 'pending_admin' | 'validated' | 'rejected';
 
-export type PaymentMethodType = 'pix' | 'cartao_vista' | 'cartao_parcelado' | 'boleto' | 'transferencia' | 'dinheiro';
-export type PaymentConditionType = 'avista' | 'parcelado';
+export type PaymentMethodType = 'pix' | 'credit_card' | 'debit_card' | 'cash' | 'bank_transfer' | 'boleto' | 'other';
+export type PaymentConditionType = 'cash' | 'installment';
 
 // Dados do cliente na venda
 export interface SaleClientData {
   name: string;
-  document: string; // CPF ou CNPJ
+  document: string;
   documentType: 'cpf' | 'cnpj';
   phone: string;
   email: string;
@@ -27,29 +31,37 @@ export interface SaleClientData {
 
 export interface Sale {
   id: string;
-  leadId: string;
-  leadName: string;
-  leadPhone: string;
+  leadId?: string;
+  leadName?: string;
+  leadPhone?: string;
 
-  // Dados completos do cliente
-  client: SaleClientData;
+  // Dados do cliente
+  clientName: string;
+  clientDocument?: string;
+  clientDocumentType?: 'cpf' | 'cnpj';
+  clientPhone?: string;
+  clientEmail?: string;
+  client?: SaleClientData;
 
   // Dados da venda
-  productSold: string;
+  productName: string;
   productCode?: string;
   productDescription?: string;
+  productId?: string;
   saleValue: number;
-  saleDate: string;
+  discountValue?: number;
+  saleDate?: string;
   paymentMethod: PaymentMethodType;
-  paymentCondition: PaymentConditionType;
+  paymentCondition?: PaymentConditionType;
   installments?: number;
   observations?: string;
 
   // Hierarquia
-  agentId: string;
-  agentName: string;
-  managerId: string;
-  managerName: string;
+  agentId?: string;
+  agentName?: string;
+  agent?: { id: string; name: string; avatarUrl?: string };
+  managerId?: string;
+  managerName?: string;
 
   // Status de validação
   status: SaleStatus;
@@ -62,7 +74,7 @@ export interface Sale {
   adminViewedAt?: string;
 
   // Metadados
-  tenantId: string;
+  tenantId?: string;
 }
 
 export interface SaleNotification {
@@ -77,24 +89,109 @@ export interface SaleNotification {
   createdAt: string;
 }
 
-// Função para gerar timestamps dinâmicos
-const getRecentTimestamp = (hoursAgo: number): string => {
-  const now = new Date();
-  now.setHours(now.getHours() - hoursAgo);
-  return now.toISOString();
-};
+export interface SalesKPIs {
+  totalValidatedSales: number;
+  totalRevenue: number;
+  pendingValidation: number;
+  pendingRevenue: number;
+  averageTicket: number;
+}
 
-// Mock de vendas
-export const mockSales: Sale[] = [];
+// ==========================================
+// API Functions
+// ==========================================
 
-// Mock de notificações de vendas
-export const mockSaleNotifications: SaleNotification[] = [];
+async function fetchSales(filters?: { status?: string; startDate?: string; endDate?: string }): Promise<Sale[]> {
+  try {
+    const params: Record<string, string> = {};
+    if (filters?.status) params.status = filters.status;
+    if (filters?.startDate) params.startDate = filters.startDate;
+    if (filters?.endDate) params.endDate = filters.endDate;
 
-// Store simples com funções de gerenciamento
+    const { data } = await api.get('/sales', { params });
+    // API may return paginated data or array
+    return Array.isArray(data) ? data : (data.data || data.items || []);
+  } catch (error) {
+    console.error('[SalesStore] Error fetching sales:', error);
+    return [];
+  }
+}
+
+async function fetchSaleById(id: string): Promise<Sale | null> {
+  try {
+    const { data } = await api.get(`/sales/${id}`);
+    return data;
+  } catch (error) {
+    console.error('[SalesStore] Error fetching sale:', error);
+    return null;
+  }
+}
+
+async function createSaleApi(saleData: {
+  leadId?: string;
+  clientName: string;
+  clientDocument?: string;
+  clientDocumentType?: 'cpf' | 'cnpj';
+  clientPhone?: string;
+  clientEmail?: string;
+  productId?: string;
+  productName: string;
+  productCode?: string;
+  saleValue: number;
+  discountValue?: number;
+  paymentMethod: PaymentMethodType;
+  paymentCondition?: PaymentConditionType;
+  installments?: number;
+  observations?: string;
+}): Promise<Sale | null> {
+  try {
+    const { data } = await api.post('/sales', saleData);
+    return data;
+  } catch (error) {
+    console.error('[SalesStore] Error creating sale:', error);
+    return null;
+  }
+}
+
+async function updateSaleStatusApi(
+  saleId: string,
+  status: SaleStatus,
+  managerComment?: string
+): Promise<Sale | null> {
+  try {
+    const { data } = await api.put(`/sales/${saleId}/status`, { status, managerComment });
+    return data;
+  } catch (error) {
+    console.error('[SalesStore] Error updating sale status:', error);
+    return null;
+  }
+}
+
+async function fetchSalesStats(): Promise<SalesKPIs> {
+  try {
+    const { data } = await api.get('/sales/stats');
+    return data;
+  } catch (error) {
+    console.error('[SalesStore] Error fetching stats:', error);
+    return {
+      totalValidatedSales: 0,
+      totalRevenue: 0,
+      pendingValidation: 0,
+      pendingRevenue: 0,
+      averageTicket: 0,
+    };
+  }
+}
+
+// ==========================================
+// Singleton store for non-hook usage
+// ==========================================
+
 class SalesStore {
-  private sales: Sale[] = [...mockSales];
-  private notifications: SaleNotification[] = [...mockSaleNotifications];
+  private sales: Sale[] = [];
   private listeners: Set<() => void> = new Set();
+  private loading = false;
+  private loaded = false;
 
   subscribe(listener: () => void) {
     this.listeners.add(listener);
@@ -103,6 +200,10 @@ class SalesStore {
 
   private notify() {
     this.listeners.forEach(listener => listener());
+  }
+
+  isLoading() {
+    return this.loading;
   }
 
   getSales() {
@@ -116,7 +217,7 @@ class SalesStore {
   // Vendas pendentes para gerente validar
   getPendingSalesForManager(managerId: string) {
     return this.sales.filter(
-      s => s.managerId === managerId && s.status === 'pending_manager'
+      s => (s.managerId === managerId || s.agent?.id === managerId) && s.status === 'pending_manager'
     );
   }
 
@@ -130,162 +231,164 @@ class SalesStore {
     return this.sales.filter(s => s.status === 'pending_manager');
   }
 
-  // Gerente valida a venda
-  validateSale(saleId: string, comment?: string) {
-    const saleIndex = this.sales.findIndex(s => s.id === saleId);
-    if (saleIndex === -1) return false;
-
-    this.sales[saleIndex] = {
-      ...this.sales[saleIndex],
-      status: 'validated',
-      managerValidatedAt: new Date().toISOString(),
-      managerComment: comment,
-    };
-
-    // Cria notificação para Admin
-    const sale = this.sales[saleIndex];
-    this.notifications.push({
-      id: `sale-notif-${Date.now()}`,
-      saleId,
-      type: 'sale_validated',
-      title: 'Venda validada pelo gerente',
-      message: `${sale.managerName} validou venda de R$ ${sale.saleValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} - ${sale.leadName}`,
-      targetRole: 'admin',
-      read: false,
-      createdAt: new Date().toISOString(),
-    });
-
+  // Buscar vendas da API
+  async loadSales(filters?: { status?: string; startDate?: string; endDate?: string }) {
+    this.loading = true;
     this.notify();
-    return true;
+
+    const sales = await fetchSales(filters);
+    this.sales = sales;
+    this.loaded = true;
+    this.loading = false;
+    this.notify();
+  }
+
+  // Gerente valida a venda
+  async validateSale(saleId: string, comment?: string): Promise<boolean> {
+    const result = await updateSaleStatusApi(saleId, 'validated', comment);
+    if (result) {
+      // Update local cache
+      const index = this.sales.findIndex(s => s.id === saleId);
+      if (index !== -1) {
+        this.sales[index] = { ...this.sales[index], ...result };
+      }
+      this.notify();
+      return true;
+    }
+    return false;
   }
 
   // Gerente rejeita a venda
-  rejectSale(saleId: string, reason: string) {
-    const saleIndex = this.sales.findIndex(s => s.id === saleId);
-    if (saleIndex === -1) return false;
-
-    this.sales[saleIndex] = {
-      ...this.sales[saleIndex],
-      status: 'rejected',
-      managerRejectedAt: new Date().toISOString(),
-      managerComment: reason,
-    };
-
-    this.notify();
-    return true;
+  async rejectSale(saleId: string, reason: string): Promise<boolean> {
+    const result = await updateSaleStatusApi(saleId, 'rejected', reason);
+    if (result) {
+      const index = this.sales.findIndex(s => s.id === saleId);
+      if (index !== -1) {
+        this.sales[index] = { ...this.sales[index], ...result };
+      }
+      this.notify();
+      return true;
+    }
+    return false;
   }
 
-  // Gerente edita a venda antes de validar
-  updateSale(saleId: string, updates: Partial<Omit<Sale, 'id' | 'status' | 'createdAt' | 'agentId' | 'agentName'>>) {
-    const saleIndex = this.sales.findIndex(s => s.id === saleId);
-    if (saleIndex === -1) return false;
-
-    this.sales[saleIndex] = {
-      ...this.sales[saleIndex],
-      ...updates,
-    };
-
-    this.notify();
-    return true;
-  }
-
-  // Registra nova venda (chamado quando vendedor fecha como ganho)
-  registerSale(saleData: Omit<Sale, 'id' | 'status' | 'createdAt'>) {
-    const newSale: Sale = {
-      ...saleData,
-      id: `sale-${Date.now()}`,
-      status: 'pending_manager',
-      createdAt: new Date().toISOString(),
-    };
-
-    this.sales.unshift(newSale);
-
-    // Cria notificação para gerente
-    this.notifications.push({
-      id: `sale-notif-${Date.now()}`,
-      saleId: newSale.id,
-      type: 'sale_pending_validation',
-      title: 'Nova venda para validar',
-      message: `${newSale.agentName} registrou venda de R$ ${newSale.saleValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} - ${newSale.leadName}`,
-      targetRole: 'manager',
-      targetUserId: newSale.managerId,
-      read: false,
-      createdAt: new Date().toISOString(),
-    });
-
-    this.notify();
+  // Registra nova venda
+  async registerSale(saleData: {
+    leadId?: string;
+    clientName: string;
+    clientDocument?: string;
+    clientDocumentType?: 'cpf' | 'cnpj';
+    clientPhone?: string;
+    clientEmail?: string;
+    productId?: string;
+    productName: string;
+    productCode?: string;
+    saleValue: number;
+    discountValue?: number;
+    paymentMethod: PaymentMethodType;
+    paymentCondition?: PaymentConditionType;
+    installments?: number;
+    observations?: string;
+  }): Promise<Sale | null> {
+    const newSale = await createSaleApi(saleData);
+    if (newSale) {
+      this.sales.unshift(newSale);
+      this.notify();
+    }
     return newSale;
   }
 
-  // Notificações
-  getNotificationsForManager(managerId: string) {
-    return this.notifications.filter(
-      n => n.targetRole === 'manager' && n.targetUserId === managerId
-    );
-  }
-
-  getNotificationsForAdmin() {
-    return this.notifications.filter(n => n.targetRole === 'admin');
-  }
-
-  getUnreadSaleNotificationsCount(role: 'manager' | 'admin', userId?: string) {
-    if (role === 'manager') {
-      return this.notifications.filter(
-        n => n.targetRole === 'manager' && n.targetUserId === userId && !n.read
-      ).length;
-    }
-    return this.notifications.filter(
-      n => n.targetRole === 'admin' && !n.read
-    ).length;
-  }
-
-  markNotificationAsRead(notifId: string) {
-    const index = this.notifications.findIndex(n => n.id === notifId);
-    if (index !== -1) {
-      this.notifications[index].read = true;
-      this.notify();
-    }
-  }
-
-  // Admin marca venda como visualizada
-  markSaleAsViewedByAdmin(saleId: string) {
-    const index = this.sales.findIndex(s => s.id === saleId);
-    if (index !== -1) {
-      this.sales[index].adminViewedAt = new Date().toISOString();
-      this.notify();
-    }
-  }
-
   // KPIs para Admin
-  getSalesKPIs() {
-    const validated = this.sales.filter(s => s.status === 'validated');
-    const pending = this.sales.filter(s => s.status === 'pending_manager');
+  async getSalesKPIs(): Promise<SalesKPIs> {
+    return fetchSalesStats();
+  }
 
-    const totalRevenue = validated.reduce((acc, s) => acc + s.saleValue, 0);
-    const pendingRevenue = pending.reduce((acc, s) => acc + s.saleValue, 0);
-
-    return {
-      totalValidatedSales: validated.length,
-      totalRevenue,
-      pendingValidation: pending.length,
-      pendingRevenue,
-      averageTicket: validated.length > 0 ? totalRevenue / validated.length : 0,
-    };
+  // Notificações (agora tratadas pelo módulo de Notifications do backend)
+  getUnreadSaleNotificationsCount(_role: 'manager' | 'admin', _userId?: string) {
+    return 0; // Handled by notifications module
   }
 }
 
 export const salesStore = new SalesStore();
 
-// Hook para usar o store com React
-import { useState, useEffect } from 'react';
+// ==========================================
+// React Hook
+// ==========================================
 
 export function useSalesStore() {
   const [, forceUpdate] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [kpis, setKpis] = useState<SalesKPIs>({
+    totalValidatedSales: 0,
+    totalRevenue: 0,
+    pendingValidation: 0,
+    pendingRevenue: 0,
+    averageTicket: 0,
+  });
 
+  // Load sales on mount
   useEffect(() => {
-    const unsubscribe = salesStore.subscribe(() => forceUpdate({}));
-    return () => { unsubscribe(); };
+    let cancelled = false;
+
+    const load = async () => {
+      setLoading(true);
+      await salesStore.loadSales();
+
+      if (!cancelled) {
+        setLoading(false);
+      }
+    };
+
+    load();
+
+    const unsubscribe = salesStore.subscribe(() => {
+      if (!cancelled) forceUpdate({});
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, []);
 
-  return salesStore;
+  // Load KPIs
+  const loadKpis = useCallback(async () => {
+    const stats = await salesStore.getSalesKPIs();
+    setKpis(stats);
+  }, []);
+
+  useEffect(() => {
+    loadKpis();
+  }, [loadKpis]);
+
+  return {
+    // Data
+    sales: salesStore.getSales(),
+    loading,
+    kpis,
+
+    // Actions
+    getSales: () => salesStore.getSales(),
+    getSaleById: (id: string) => salesStore.getSaleById(id),
+    getPendingSalesForManager: (managerId: string) => salesStore.getPendingSalesForManager(managerId),
+    getValidatedSales: () => salesStore.getValidatedSales(),
+    getPendingManagerValidation: () => salesStore.getPendingManagerValidation(),
+    validateSale: (saleId: string, comment?: string) => salesStore.validateSale(saleId, comment),
+    rejectSale: (saleId: string, reason: string) => salesStore.rejectSale(saleId, reason),
+    registerSale: (data: Parameters<typeof salesStore.registerSale>[0]) => salesStore.registerSale(data),
+    getSalesKPIs: () => salesStore.getSalesKPIs(),
+    getUnreadSaleNotificationsCount: (role: 'manager' | 'admin', userId?: string) => salesStore.getUnreadSaleNotificationsCount(role, userId),
+    loadSales: (filters?: { status?: string; startDate?: string; endDate?: string }) => salesStore.loadSales(filters),
+    refreshKpis: loadKpis,
+
+    // Legacy compat
+    updateSale: (_saleId: string, _updates: Partial<Sale>) => {
+      console.warn('[SalesStore] updateSale: use registerSale or validateSale/rejectSale instead');
+      return false;
+    },
+    getNotificationsForManager: (_managerId: string) => [] as SaleNotification[],
+    getNotificationsForAdmin: () => [] as SaleNotification[],
+    markNotificationAsRead: (_notifId: string) => { },
+    markSaleAsViewedByAdmin: (_saleId: string) => { },
+  };
 }

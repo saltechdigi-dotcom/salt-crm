@@ -313,7 +313,8 @@ export const InlineConversationsPanel: React.FC<InlineConversationsPanelProps> =
   const [expandedTagStatus, setExpandedTagStatus] = useState<string | null>(null);
 
   // Labels state (etiquetas)
-  const { labels: availableLabels } = useLabelsStore();
+  const { labels: availableLabels, fetchLabels } = useLabelsStore();
+  useEffect(() => { fetchLabels(); }, [fetchLabels]);
   const [labelsPopoverOpen, setLabelsPopoverOpen] = useState(false);
   const [selectedConversationLabels, setSelectedConversationLabels] = useState<string[]>([]);
 

@@ -1,10 +1,12 @@
 // ==========================================
 // SISTEMA DE ENTREGAS/SERVIÇOS PENDENTES
+// Conectado à API real: /api/v1/deliveries
 // ==========================================
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useUserRole } from '@/hooks/useUserRole';
 import { SaleStatus } from './sales-store';
+import api from '@/lib/api';
 
 export type SaleType = 'produto' | 'servico';
 export type DeliveryStatus = 'immediate' | 'scheduled' | 'completed';
@@ -12,33 +14,19 @@ export type DeliveryStatus = 'immediate' | 'scheduled' | 'completed';
 export interface PendingDelivery {
   id: string;
   saleId: string;
-
-  // Tipo de venda
   saleType: SaleType;
-
-  // Dados do cliente
   clientName: string;
   clientPhone: string;
   clientEmail?: string;
-
-  // Dados do item vendido
   productName: string;
   productCode?: string;
   saleValue: number;
-
-  // Status da venda (validação gerencial)
-  saleStatus: SaleStatus;
-
-  // Status da entrega/serviço
+  saleStatus?: SaleStatus;
   deliveryStatus: DeliveryStatus;
-
-  // Dados de agendamento (quando scheduled)
-  scheduledDate?: Date;
+  scheduledDate?: string;
   scheduledShift?: 'manha' | 'tarde' | 'noite' | 'personalizado';
   scheduledTime?: string;
   deliveryContact?: string;
-
-  // Endereço de entrega (para produtos)
   deliveryAddress?: {
     street: string;
     number: string;
@@ -48,44 +36,100 @@ export interface PendingDelivery {
     state: string;
     zipCode: string;
   };
-
-  // Hierarquia
   sellerId: string;
   sellerName: string;
-  managerId?: string;
-  managerName?: string;
-
-  // Timestamps
-  saleDate: Date;
-  createdAt: Date;
-  completedAt?: Date;
-
-  // Observações
+  seller?: { id: string; name: string };
+  saleDate: string;
+  createdAt: string;
+  completedAt?: string;
   observations?: string;
-
-  tenantId: string;
+  tenantId?: string;
 }
 
-// Função para gerar timestamps dinâmicos
-const getRecentDate = (daysAgo: number): Date => {
-  const now = new Date();
-  now.setDate(now.getDate() - daysAgo);
-  return now;
-};
+export interface DeliveryKPIs {
+  totalPending: number;
+  totalCompleted: number;
+  pendingProducts: number;
+  pendingServices: number;
+  todayCount: number;
+  pendingValue: number;
+}
 
-const getFutureDate = (daysFromNow: number): Date => {
-  const now = new Date();
-  now.setDate(now.getDate() + daysFromNow);
-  return now;
-};
+// ==========================================
+// API Functions
+// ==========================================
 
-// Mock de entregas pendentes
-const mockPendingDeliveries: PendingDelivery[] = [];
+async function fetchDeliveries(filters?: { status?: string; sellerId?: string }): Promise<PendingDelivery[]> {
+  try {
+    const params: Record<string, string> = {};
+    if (filters?.status) params.status = filters.status;
+    if (filters?.sellerId) params.sellerId = filters.sellerId;
+    const { data } = await api.get('/deliveries', { params });
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('[DeliveryStore] Error fetching deliveries:', error);
+    return [];
+  }
+}
 
-// Store de entregas pendentes
+async function createDeliveryApi(delivery: Omit<PendingDelivery, 'id' | 'createdAt' | 'seller'>): Promise<PendingDelivery | null> {
+  try {
+    const { data } = await api.post('/deliveries', delivery);
+    return data;
+  } catch (error) {
+    console.error('[DeliveryStore] Error creating delivery:', error);
+    return null;
+  }
+}
+
+async function updateDeliveryApi(id: string, updates: Partial<PendingDelivery>): Promise<PendingDelivery | null> {
+  try {
+    const { data } = await api.put(`/deliveries/${id}`, updates);
+    return data;
+  } catch (error) {
+    console.error('[DeliveryStore] Error updating delivery:', error);
+    return null;
+  }
+}
+
+async function completeDeliveryApi(id: string): Promise<PendingDelivery | null> {
+  try {
+    const { data } = await api.patch(`/deliveries/${id}/complete`);
+    return data;
+  } catch (error) {
+    console.error('[DeliveryStore] Error completing delivery:', error);
+    return null;
+  }
+}
+
+async function deleteDeliveryApi(id: string): Promise<boolean> {
+  try {
+    await api.delete(`/deliveries/${id}`);
+    return true;
+  } catch (error) {
+    console.error('[DeliveryStore] Error deleting delivery:', error);
+    return false;
+  }
+}
+
+async function fetchDeliveryStats(): Promise<DeliveryKPIs> {
+  try {
+    const { data } = await api.get('/deliveries/stats');
+    return data;
+  } catch (error) {
+    console.error('[DeliveryStore] Error fetching stats:', error);
+    return { totalPending: 0, totalCompleted: 0, pendingProducts: 0, pendingServices: 0, todayCount: 0, pendingValue: 0 };
+  }
+}
+
+// ==========================================
+// Store Class
+// ==========================================
+
 class DeliveryStore {
-  private deliveries: PendingDelivery[] = [...mockPendingDeliveries];
+  private deliveries: PendingDelivery[] = [];
   private listeners: Set<() => void> = new Set();
+  private loaded = false;
 
   subscribe(listener: () => void) {
     this.listeners.add(listener);
@@ -100,141 +144,129 @@ class DeliveryStore {
     return this.deliveries;
   }
 
-  // Entregas pendentes para um vendedor específico (somente vendas validadas)
   getPendingForSeller(sellerName: string): PendingDelivery[] {
     return this.deliveries
-      .filter(d =>
-        d.sellerName === sellerName &&
-        d.deliveryStatus === 'scheduled' &&
-        d.saleStatus === 'validated'
-      )
+      .filter(d => d.sellerName === sellerName && d.deliveryStatus === 'scheduled')
       .sort((a, b) => {
         if (!a.scheduledDate || !b.scheduledDate) return 0;
         return new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime();
       });
   }
 
-  // Todas as entregas pendentes (para gestão - somente vendas validadas)
   getAllPending(): PendingDelivery[] {
     return this.deliveries
-      .filter(d => d.deliveryStatus === 'scheduled' && d.saleStatus === 'validated')
+      .filter(d => d.deliveryStatus === 'scheduled' || d.deliveryStatus === 'immediate')
       .sort((a, b) => {
         if (!a.scheduledDate || !b.scheduledDate) return 0;
         return new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime();
       });
   }
 
-  // Criar nova entrega pendente
-  createDelivery(data: Omit<PendingDelivery, 'id' | 'createdAt'>): PendingDelivery {
-    const newDelivery: PendingDelivery = {
-      ...data,
-      id: `del-${Date.now()}`,
-      createdAt: new Date(),
-    };
-
-    this.deliveries.unshift(newDelivery);
+  async loadDeliveries(filters?: { status?: string; sellerId?: string }) {
+    this.deliveries = await fetchDeliveries(filters);
+    this.loaded = true;
     this.notify();
-    return newDelivery;
   }
 
-  // Marcar entrega como concluída
-  completeDelivery(deliveryId: string): boolean {
-    const index = this.deliveries.findIndex(d => d.id === deliveryId);
-    if (index === -1) return false;
-
-    this.deliveries[index] = {
-      ...this.deliveries[index],
-      deliveryStatus: 'completed',
-      completedAt: new Date(),
-    };
-
-    this.notify();
-    return true;
+  async createDelivery(data: Omit<PendingDelivery, 'id' | 'createdAt' | 'seller'>): Promise<PendingDelivery | null> {
+    const created = await createDeliveryApi(data);
+    if (created) {
+      this.deliveries.unshift(created);
+      this.notify();
+    }
+    return created;
   }
 
-  // Atualizar entrega
-  updateDelivery(deliveryId: string, data: Partial<Omit<PendingDelivery, 'id' | 'createdAt'>>): boolean {
-    const index = this.deliveries.findIndex(d => d.id === deliveryId);
-    if (index === -1) return false;
-
-    this.deliveries[index] = {
-      ...this.deliveries[index],
-      ...data,
-    };
-
-    this.notify();
-    return true;
+  async completeDelivery(deliveryId: string): Promise<boolean> {
+    const result = await completeDeliveryApi(deliveryId);
+    if (result) {
+      const idx = this.deliveries.findIndex(d => d.id === deliveryId);
+      if (idx !== -1) this.deliveries[idx] = { ...this.deliveries[idx], deliveryStatus: 'completed', completedAt: new Date().toISOString() };
+      this.notify();
+      return true;
+    }
+    return false;
   }
 
-  // Excluir entrega
-  deleteDelivery(deliveryId: string): boolean {
-    const index = this.deliveries.findIndex(d => d.id === deliveryId);
-    if (index === -1) return false;
-
-    this.deliveries.splice(index, 1);
-    this.notify();
-    return true;
+  async updateDelivery(deliveryId: string, data: Partial<PendingDelivery>): Promise<boolean> {
+    const result = await updateDeliveryApi(deliveryId, data);
+    if (result) {
+      const idx = this.deliveries.findIndex(d => d.id === deliveryId);
+      if (idx !== -1) this.deliveries[idx] = { ...this.deliveries[idx], ...result };
+      this.notify();
+      return true;
+    }
+    return false;
   }
 
-  // KPIs (somente vendas validadas são contabilizadas)
-  getDeliveryKPIs() {
-    const pending = this.deliveries.filter(d => d.deliveryStatus === 'scheduled' && d.saleStatus === 'validated');
-    const completed = this.deliveries.filter(d => d.deliveryStatus === 'completed');
-    const products = pending.filter(d => d.saleType === 'produto');
-    const services = pending.filter(d => d.saleType === 'servico');
+  async deleteDelivery(deliveryId: string): Promise<boolean> {
+    const ok = await deleteDeliveryApi(deliveryId);
+    if (ok) {
+      this.deliveries = this.deliveries.filter(d => d.id !== deliveryId);
+      this.notify();
+      return true;
+    }
+    return false;
+  }
 
-    // Entregas para hoje
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    const todayDeliveries = pending.filter(d => {
-      if (!d.scheduledDate) return false;
-      const scheduled = new Date(d.scheduledDate);
-      scheduled.setHours(0, 0, 0, 0);
-      return scheduled.getTime() === today.getTime();
-    });
-
-    return {
-      totalPending: pending.length,
-      totalCompleted: completed.length,
-      pendingProducts: products.length,
-      pendingServices: services.length,
-      todayCount: todayDeliveries.length,
-      pendingValue: pending.reduce((acc, d) => acc + d.saleValue, 0),
-    };
+  async getDeliveryKPIs(): Promise<DeliveryKPIs> {
+    return fetchDeliveryStats();
   }
 }
 
 export const deliveryStore = new DeliveryStore();
 
-// Hook React para usar o store
+// React Hook
 export function usePendingDeliveries() {
   const [, forceUpdate] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [kpis, setKpis] = useState<DeliveryKPIs>({
+    totalPending: 0, totalCompleted: 0, pendingProducts: 0, pendingServices: 0, todayCount: 0, pendingValue: 0,
+  });
   const { role, userName } = useUserRole();
 
   useEffect(() => {
-    const unsubscribe = deliveryStore.subscribe(() => forceUpdate({}));
-    return () => { unsubscribe(); };
+    let cancelled = false;
+
+    const load = async () => {
+      setLoading(true);
+      await deliveryStore.loadDeliveries();
+      const stats = await deliveryStore.getDeliveryKPIs();
+      if (!cancelled) {
+        setKpis(stats);
+        setLoading(false);
+      }
+    };
+
+    load();
+    const unsubscribe = deliveryStore.subscribe(() => {
+      if (!cancelled) forceUpdate({});
+    });
+
+    return () => { cancelled = true; unsubscribe(); };
   }, []);
 
-  // Filtra por role
-  const isManager = role === 'TENANT_ADMIN' || role === 'TENANT_GERENTE';
+  const refreshKpis = useCallback(async () => {
+    const stats = await deliveryStore.getDeliveryKPIs();
+    setKpis(stats);
+  }, []);
 
+  // Role-based filtering
+  const isManager = role === 'TENANT_ADMIN' || role === 'TENANT_GERENTE';
   const deliveries = isManager
     ? deliveryStore.getAllPending()
-    : deliveryStore.getPendingForSeller(userName || 'João Carlos'); // fallback para mock
-
-  const kpis = deliveryStore.getDeliveryKPIs();
+    : deliveryStore.getPendingForSeller(userName || '');
 
   return {
     deliveries,
     kpis,
-    completeDelivery: deliveryStore.completeDelivery.bind(deliveryStore),
-    updateDelivery: deliveryStore.updateDelivery.bind(deliveryStore),
-    deleteDelivery: deliveryStore.deleteDelivery.bind(deliveryStore),
-    createDelivery: deliveryStore.createDelivery.bind(deliveryStore),
+    loading,
+    refreshKpis,
+    completeDelivery: (id: string) => deliveryStore.completeDelivery(id),
+    updateDelivery: (id: string, data: Partial<PendingDelivery>) => deliveryStore.updateDelivery(id, data),
+    deleteDelivery: (id: string) => deliveryStore.deleteDelivery(id),
+    createDelivery: (data: Omit<PendingDelivery, 'id' | 'createdAt' | 'seller'>) => deliveryStore.createDelivery(data),
+    loadDeliveries: (filters?: { status?: string }) => deliveryStore.loadDeliveries(filters),
   };
 }
 

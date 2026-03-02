@@ -276,7 +276,10 @@ const Dashboard: React.FC = () => {
 
   // Role-based permissions for pinning
   const { role, permissions } = useUserRole();
-  const { labels: availableLabels } = useLabelsStore();
+  const { labels: availableLabels, fetchLabels } = useLabelsStore();
+
+  // Load labels from API
+  useEffect(() => { fetchLabels(); }, [fetchLabels]);
   const isAdmin = role === 'TENANT_ADMIN';
   const { canPinLeads, isSeller, canSellerUnpin, getPendingDemand, resolveDemand, createDemandForPin } = useLeadDemands();
   const { hasActiveSchedule, getScheduleForLead } = useLeadSchedules();

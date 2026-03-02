@@ -1,8 +1,10 @@
 // ==========================================
 // SISTEMA DE PÓS-VENDA COM IA (365 dias)
+// Conectado à API real: /api/v1/postsale
 // ==========================================
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import api from '@/lib/api';
 
 export type MessageChannel = 'whatsapp' | 'email' | 'sms';
 export type TemplateStatus = 'active' | 'inactive';
@@ -10,7 +12,7 @@ export type TemplateStatus = 'active' | 'inactive';
 export interface PostSaleTemplate {
   id: string;
   name: string;
-  dayOffset: number; // Dias após a venda (D+X)
+  dayOffset: number;
   channel: MessageChannel;
   content: string;
   useAI: boolean;
@@ -24,7 +26,6 @@ export interface PostSaleMessage {
   id: string;
   templateId: string;
   journeyId: string;
-  clientId: string;
   clientName: string;
   channel: MessageChannel;
   content: string;
@@ -39,7 +40,6 @@ export interface PostSaleMessage {
 export interface PostSaleJourney {
   id: string;
   saleId: string;
-  clientId: string;
   clientName: string;
   productSold: string;
   saleDate: string;
@@ -50,180 +50,135 @@ export interface PostSaleJourney {
   messagesSent: number;
 }
 
-// Mock templates padrão
-const defaultTemplates: PostSaleTemplate[] = [
-  {
-    id: 'tpl-1',
-    name: 'Boas-vindas (D+1)',
-    dayOffset: 1,
-    channel: 'whatsapp',
-    content: 'Olá {nome}! 👋 Obrigado por escolher a {empresa}. Esperamos que esteja aproveitando seu {produto}. Qualquer dúvida, estamos à disposição!',
-    useAI: false,
-    status: 'active',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'tpl-2',
-    name: 'Check-in inicial (D+7)',
-    dayOffset: 7,
-    channel: 'whatsapp',
-    content: 'Oi {nome}! Tudo bem? 🙂 Já faz uma semana que você está com seu {produto}. Como está sendo a experiência? Posso ajudar em algo?',
-    useAI: true,
-    aiPrompt: 'Gere uma mensagem personalizada de check-in para o cliente, considerando o produto adquirido e demonstrando interesse genuíno pela experiência.',
-    status: 'active',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'tpl-3',
-    name: 'Primeira avaliação (D+15)',
-    dayOffset: 15,
-    channel: 'whatsapp',
-    content: 'Olá {nome}! 📊 Gostaríamos de saber como está sua experiência com o {produto}. Pode nos dar uma nota de 0 a 10?',
-    useAI: false,
-    status: 'active',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'tpl-4',
-    name: 'Primeira mensalidade (D+30)',
-    dayOffset: 30,
-    channel: 'email',
-    content: 'Prezado(a) {nome}, completamos um mês juntos! 🎉 Esperamos que esteja satisfeito(a) com nossos serviços.',
-    useAI: true,
-    aiPrompt: 'Crie uma mensagem comemorativa de 1 mês, reforçando o valor entregue e abrindo espaço para feedback.',
-    status: 'active',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'tpl-5',
-    name: 'Segundo mês (D+60)',
-    dayOffset: 60,
-    channel: 'whatsapp',
-    content: 'Oi {nome}! Dois meses utilizando nosso {produto}. Como está a experiência? Precisa de algum suporte?',
-    useAI: false,
-    status: 'active',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'tpl-6',
-    name: 'Trimestre (D+90)',
-    dayOffset: 90,
-    channel: 'email',
-    content: 'Prezado(a) {nome}, três meses de parceria! Gostaríamos de compartilhar alguns insights sobre seu uso do {produto}.',
-    useAI: true,
-    aiPrompt: 'Gere um resumo personalizado de 3 meses, com insights de uso e sugestões de otimização.',
-    status: 'active',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'tpl-7',
-    name: 'Semestre (D+180)',
-    dayOffset: 180,
-    channel: 'whatsapp',
-    content: 'Olá {nome}! 🎯 Já são 6 meses juntos. Que tal uma conversa rápida para alinharmos próximos passos?',
-    useAI: false,
-    status: 'active',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'tpl-8',
-    name: 'Aniversário (D+365)',
-    dayOffset: 365,
-    channel: 'whatsapp',
-    content: '🎂 Parabéns, {nome}! Completamos 1 ano de parceria! Obrigado por confiar na {empresa}. Preparamos algo especial para você!',
-    useAI: true,
-    aiPrompt: 'Crie uma mensagem especial de aniversário de 1 ano, celebrando a jornada do cliente e oferecendo um benefício exclusivo.',
-    status: 'active',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
+export interface PostSaleStats {
+  activeJourneys: number;
+  pendingMessages: number;
+  sentMessages: number;
+  aiMessages: number;
+  responseRate: number;
+}
 
-// Mock de mensagens já enviadas/agendadas
-const mockMessages: PostSaleMessage[] = [
-  {
-    id: 'msg-1',
-    templateId: 'tpl-1',
-    journeyId: 'journey-1',
-    clientId: 'client-1',
-    clientName: 'Lucia Ferreira',
-    channel: 'whatsapp',
-    content: 'Olá Lucia! 👋 Obrigado por escolher a SALT. Esperamos que esteja aproveitando seu Plano Enterprise. Qualquer dúvida, estamos à disposição!',
-    wasAIGenerated: false,
-    scheduledFor: new Date(Date.now() - 86400000 * 6).toISOString(),
-    sentAt: new Date(Date.now() - 86400000 * 6).toISOString(),
-    status: 'sent',
-    response: 'Obrigada! Estou adorando!',
-    respondedAt: new Date(Date.now() - 86400000 * 5.5).toISOString(),
-  },
-  {
-    id: 'msg-2',
-    templateId: 'tpl-2',
-    journeyId: 'journey-1',
-    clientId: 'client-1',
-    clientName: 'Lucia Ferreira',
-    channel: 'whatsapp',
-    content: 'Oi Lucia! Tudo bem? 🙂 Já faz uma semana que você está com seu Plano Enterprise. A IA identificou que você utilizou principalmente o módulo de dashboards. Como está sendo a experiência? Precisa de ajuda com algum outro recurso?',
-    wasAIGenerated: true,
-    scheduledFor: new Date().toISOString(),
-    status: 'pending',
-  },
-  {
-    id: 'msg-3',
-    templateId: 'tpl-1',
-    journeyId: 'journey-2',
-    clientId: 'client-2',
-    clientName: 'Fernanda Lima',
-    channel: 'whatsapp',
-    content: 'Olá Fernanda! 👋 Obrigado por escolher a SALT. Esperamos que esteja aproveitando seu Plano Básico. Qualquer dúvida, estamos à disposição!',
-    wasAIGenerated: false,
-    scheduledFor: new Date(Date.now() - 86400000 * 47).toISOString(),
-    sentAt: new Date(Date.now() - 86400000 * 47).toISOString(),
-    status: 'sent',
-  },
-];
+// ==========================================
+// API Functions
+// ==========================================
 
-// Mock de jornadas ativas
-const mockJourneys: PostSaleJourney[] = [
-  {
-    id: 'journey-1',
-    saleId: 'sale-1',
-    clientId: 'client-1',
-    clientName: 'Lucia Ferreira',
-    productSold: 'Plano Enterprise',
-    saleDate: new Date(Date.now() - 86400000 * 7).toISOString(),
-    startedAt: new Date(Date.now() - 86400000 * 6).toISOString(),
-    status: 'active',
-    messagesTotal: 8,
-    messagesSent: 1,
-  },
-  {
-    id: 'journey-2',
-    saleId: 'sale-3',
-    clientId: 'client-2',
-    clientName: 'Fernanda Lima',
-    productSold: 'Plano Básico',
-    saleDate: new Date(Date.now() - 86400000 * 48).toISOString(),
-    startedAt: new Date(Date.now() - 86400000 * 47).toISOString(),
-    status: 'active',
-    messagesTotal: 8,
-    messagesSent: 2,
-  },
-];
+async function fetchTemplates(status?: string): Promise<PostSaleTemplate[]> {
+  try {
+    const params: Record<string, string> = {};
+    if (status) params.status = status;
+    const { data } = await api.get('/postsale/templates', { params });
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('[PostSaleStore] Error fetching templates:', error);
+    return [];
+  }
+}
 
-// Store class
+async function createTemplateApi(template: Omit<PostSaleTemplate, 'id' | 'createdAt' | 'updatedAt'>): Promise<PostSaleTemplate | null> {
+  try {
+    const { data } = await api.post('/postsale/templates', template);
+    return data;
+  } catch (error) {
+    console.error('[PostSaleStore] Error creating template:', error);
+    return null;
+  }
+}
+
+async function updateTemplateApi(id: string, updates: Partial<PostSaleTemplate>): Promise<PostSaleTemplate | null> {
+  try {
+    const { data } = await api.put(`/postsale/templates/${id}`, updates);
+    return data;
+  } catch (error) {
+    console.error('[PostSaleStore] Error updating template:', error);
+    return null;
+  }
+}
+
+async function deleteTemplateApi(id: string): Promise<boolean> {
+  try {
+    await api.delete(`/postsale/templates/${id}`);
+    return true;
+  } catch (error) {
+    console.error('[PostSaleStore] Error deleting template:', error);
+    return false;
+  }
+}
+
+async function fetchJourneys(status?: string): Promise<PostSaleJourney[]> {
+  try {
+    const params: Record<string, string> = {};
+    if (status) params.status = status;
+    const { data } = await api.get('/postsale/journeys', { params });
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('[PostSaleStore] Error fetching journeys:', error);
+    return [];
+  }
+}
+
+async function fetchJourneyById(id: string): Promise<PostSaleJourney & { messages: PostSaleMessage[] } | null> {
+  try {
+    const { data } = await api.get(`/postsale/journeys/${id}`);
+    return data;
+  } catch (error) {
+    console.error('[PostSaleStore] Error fetching journey:', error);
+    return null;
+  }
+}
+
+async function createJourneyApi(journey: { saleId: string; clientName: string; productSold: string; saleDate: string }): Promise<PostSaleJourney | null> {
+  try {
+    const { data } = await api.post('/postsale/journeys', journey);
+    return data;
+  } catch (error) {
+    console.error('[PostSaleStore] Error creating journey:', error);
+    return null;
+  }
+}
+
+async function cancelJourneyApi(id: string): Promise<boolean> {
+  try {
+    await api.patch(`/postsale/journeys/${id}/cancel`);
+    return true;
+  } catch (error) {
+    console.error('[PostSaleStore] Error cancelling journey:', error);
+    return false;
+  }
+}
+
+async function fetchMessages(journeyId?: string, status?: string): Promise<PostSaleMessage[]> {
+  try {
+    const params: Record<string, string> = {};
+    if (journeyId) params.journeyId = journeyId;
+    if (status) params.status = status;
+    const { data } = await api.get('/postsale/messages', { params });
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('[PostSaleStore] Error fetching messages:', error);
+    return [];
+  }
+}
+
+async function fetchStats(): Promise<PostSaleStats> {
+  try {
+    const { data } = await api.get('/postsale/stats');
+    return data;
+  } catch (error) {
+    console.error('[PostSaleStore] Error fetching stats:', error);
+    return { activeJourneys: 0, pendingMessages: 0, sentMessages: 0, aiMessages: 0, responseRate: 0 };
+  }
+}
+
+// ==========================================
+// Store Class
+// ==========================================
+
 class PostSaleStore {
-  private templates: PostSaleTemplate[] = [...defaultTemplates];
-  private messages: PostSaleMessage[] = [...mockMessages];
-  private journeys: PostSaleJourney[] = [...mockJourneys];
+  private templates: PostSaleTemplate[] = [];
+  private journeys: PostSaleJourney[] = [];
+  private messages: PostSaleMessage[] = [];
   private listeners: Set<() => void> = new Set();
+  private loaded = false;
 
   subscribe(listener: () => void) {
     this.listeners.add(listener);
@@ -243,90 +198,98 @@ class PostSaleStore {
     return this.templates.filter(t => t.status === 'active').sort((a, b) => a.dayOffset - b.dayOffset);
   }
 
-  updateTemplate(templateId: string, updates: Partial<PostSaleTemplate>) {
-    const index = this.templates.findIndex(t => t.id === templateId);
-    if (index !== -1) {
-      this.templates[index] = {
-        ...this.templates[index],
-        ...updates,
-        updatedAt: new Date().toISOString(),
-      };
-      this.notify();
-      return this.templates[index];
-    }
-    return null;
-  }
-
-  toggleTemplateStatus(templateId: string) {
-    const template = this.templates.find(t => t.id === templateId);
-    if (template) {
-      template.status = template.status === 'active' ? 'inactive' : 'active';
-      template.updatedAt = new Date().toISOString();
-      this.notify();
-      return template;
-    }
-    return null;
-  }
-
-  addTemplate(template: Omit<PostSaleTemplate, 'id' | 'createdAt' | 'updatedAt'>) {
-    const newTemplate: PostSaleTemplate = {
-      ...template,
-      id: `tpl-${Date.now()}`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    this.templates.push(newTemplate);
+  async loadTemplates() {
+    this.templates = await fetchTemplates();
     this.notify();
-    return newTemplate;
   }
 
-  // Messages
-  getMessages() {
-    return this.messages;
+  async addTemplate(template: Omit<PostSaleTemplate, 'id' | 'createdAt' | 'updatedAt'>) {
+    const created = await createTemplateApi(template);
+    if (created) {
+      this.templates.push(created);
+      this.notify();
+    }
+    return created;
   }
 
-  getPendingMessages() {
-    return this.messages.filter(m => m.status === 'pending');
+  async updateTemplate(id: string, updates: Partial<PostSaleTemplate>) {
+    const updated = await updateTemplateApi(id, updates);
+    if (updated) {
+      const idx = this.templates.findIndex(t => t.id === id);
+      if (idx !== -1) this.templates[idx] = updated;
+      this.notify();
+    }
+    return updated;
   }
 
-  getSentMessages() {
-    return this.messages.filter(m => m.status === 'sent');
+  async toggleTemplateStatus(id: string) {
+    const tpl = this.templates.find(t => t.id === id);
+    if (tpl) {
+      const newStatus = tpl.status === 'active' ? 'inactive' : 'active';
+      return this.updateTemplate(id, { status: newStatus });
+    }
+    return null;
   }
 
-  getMessagesForJourney(journeyId: string) {
-    return this.messages.filter(m => m.journeyId === journeyId);
+  async removeTemplate(id: string) {
+    const ok = await deleteTemplateApi(id);
+    if (ok) {
+      this.templates = this.templates.filter(t => t.id !== id);
+      this.notify();
+    }
+    return ok;
   }
 
   // Journeys
-  getJourneys() {
-    return this.journeys;
+  getJourneys() { return this.journeys; }
+  getActiveJourneys() { return this.journeys.filter(j => j.status === 'active'); }
+  getJourneyById(id: string) { return this.journeys.find(j => j.id === id); }
+
+  async loadJourneys() {
+    this.journeys = await fetchJourneys();
+    this.notify();
   }
 
-  getActiveJourneys() {
-    return this.journeys.filter(j => j.status === 'active');
+  async createJourney(data: { saleId: string; clientName: string; productSold: string; saleDate: string }) {
+    const created = await createJourneyApi(data);
+    if (created) {
+      this.journeys.unshift(created);
+      this.notify();
+    }
+    return created;
   }
 
-  getJourneyById(journeyId: string) {
-    return this.journeys.find(j => j.id === journeyId);
+  async cancelJourney(id: string) {
+    const ok = await cancelJourneyApi(id);
+    if (ok) {
+      const idx = this.journeys.findIndex(j => j.id === id);
+      if (idx !== -1) this.journeys[idx] = { ...this.journeys[idx], status: 'cancelled' };
+      this.notify();
+    }
+    return ok;
+  }
+
+  // Messages
+  getMessages() { return this.messages; }
+  getPendingMessages() { return this.messages.filter(m => m.status === 'pending'); }
+  getSentMessages() { return this.messages.filter(m => m.status === 'sent'); }
+  getMessagesForJourney(journeyId: string) { return this.messages.filter(m => m.journeyId === journeyId); }
+
+  async loadMessages(journeyId?: string) {
+    this.messages = await fetchMessages(journeyId);
+    this.notify();
   }
 
   // Stats
-  getStats() {
-    const activeJourneys = this.journeys.filter(j => j.status === 'active').length;
-    const pendingMessages = this.messages.filter(m => m.status === 'pending').length;
-    const sentMessages = this.messages.filter(m => m.status === 'sent').length;
-    const aiMessages = this.messages.filter(m => m.wasAIGenerated).length;
-    const responseRate = sentMessages > 0 
-      ? this.messages.filter(m => m.response).length / sentMessages * 100 
-      : 0;
+  async getStats() {
+    return fetchStats();
+  }
 
-    return {
-      activeJourneys,
-      pendingMessages,
-      sentMessages,
-      aiMessages,
-      responseRate: Math.round(responseRate),
-    };
+  // Initial load
+  async loadAll() {
+    if (this.loaded) return;
+    await Promise.all([this.loadTemplates(), this.loadJourneys()]);
+    this.loaded = true;
   }
 }
 
@@ -335,11 +298,44 @@ export const postSaleStore = new PostSaleStore();
 // React Hook
 export function usePostSaleStore() {
   const [, forceUpdate] = useState({});
-  
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<PostSaleStats>({
+    activeJourneys: 0, pendingMessages: 0, sentMessages: 0, aiMessages: 0, responseRate: 0,
+  });
+
   useEffect(() => {
-    const unsubscribe = postSaleStore.subscribe(() => forceUpdate({}));
-    return () => { unsubscribe(); };
+    let cancelled = false;
+
+    const load = async () => {
+      setLoading(true);
+      await postSaleStore.loadAll();
+      const s = await postSaleStore.getStats();
+      if (!cancelled) {
+        setStats(s);
+        setLoading(false);
+      }
+    };
+
+    load();
+    const unsubscribe = postSaleStore.subscribe(() => {
+      if (!cancelled) forceUpdate({});
+    });
+
+    return () => { cancelled = true; unsubscribe(); };
   }, []);
 
-  return postSaleStore;
+  const refreshStats = useCallback(async () => {
+    const s = await postSaleStore.getStats();
+    setStats(s);
+  }, []);
+
+  return {
+    ...postSaleStore,
+    loading,
+    stats,
+    refreshStats,
+    templates: postSaleStore.getTemplates(),
+    journeys: postSaleStore.getJourneys(),
+    activeJourneys: postSaleStore.getActiveJourneys(),
+  };
 }

@@ -1,155 +1,96 @@
- ✅ SALT CRM — Checklist QA (ATUALIZADO com staging)
-### Baseado no Contrato + PRD v3 + Código no GitHub (main + staging)
-**Data:** 27/02/2026 | **Prazo contratual:** 16/03/2026 (tolerância até 23/03)
+Yago, segue o checklist da análise do repositório.
+
+Contexto geral:
+Para chegar nos percentuais abaixo, usei o seguinte critério: entregue de fato = funcionalidade testada em ambiente real, sem mock, acessível para validação.
+
+**Atualizado em 02/03/2026 (pós-deploy + migração de stores):**
+* **~55-60% entregue** — Fundação + Core + 6 módulos CRUD + RLS + Cron + IA + SuperAdmin + Deploy Hetzner + Stores conectados à API real
+* **~10-15% existe mas parcial** — N8N parcial, custo por token pendente
+* **~25-30% não iniciado** — Asaas, Calendar, E2E, CI/CD, documentação
 
 ---
 
-## O QUE MUDOU de main → staging
-
-| O que | main | staging | Mudou? |
-|-------|------|---------|--------|
-| Módulos backend | 7 | 10 (+agents, +superadmin, +upload) | ✅ Sim |
-| Linhas backend | 4.063 | 5.965 (+1.902) | ✅ Sim |
-| Linhas frontend | 37.718 | 38.520 (+802) | Pouco |
-| Chat-store com API real | Não | Sim (novo arquivo) | ✅ Sim |
-| Documentação endpoints | Não | Sim (references/endpoints.md) | ✅ Sim* |
-| Asaas | Zero | Zero | ❌ Nada |
-| Google Calendar | Zero | Zero | ❌ Nada |
-| RLS (segurança) | Zero | Zero | ❌ Nada |
-| Sales/Vendas módulo | Não | Não | ❌ Nada |
-| Schedules módulo | Não | Não | ❌ Nada |
-| Notifications módulo | Não | Não | ❌ Nada |
-| Distribution/Roleta | Não | Não | ❌ Nada |
-| NPS módulo | Não | Não | ❌ Nada |
-| Teams módulo | Não | Não | ❌ Nada |
-
-*A documentação de endpoints é da API do UAZAPI (WhatsApp), não dos endpoints do SALT CRM.
+FASE 1 — Fundação ✅ Entregue e aceita (~10% do projeto)
+✓ Setup Node.js + Express + TypeScript
+✓ Prisma + Supabase
+✓ Migrations + seed (34 tabelas)
+✓ Auth: login, JWT, refresh
+✓ Middlewares: auth, tenant, role
+✓ Tela de Login conectada à API real
 
 ---
 
-## 🟢 FEITO
-
-### Banco de Dados
-- [x] 34 tabelas criadas (migration de 10/02)
-- [x] Seed com tenant demo + usuários
-- [x] Índices nas tabelas principais
-- [x] Nova migration: add avatar_url to leads (22/02)
-- [x] Novo model AiAgent adicionado ao schema
-
-### Autenticação
-- [x] Login com e-mail e senha (JWT + refresh)
-- [x] Login SuperAdmin separado
-- [x] Middleware de autenticação
-- [x] Middleware de tenant
-- [x] Middleware de role
-- [x] Tela de Login conectada à API real
-
-### CRUDs Backend
-- [x] Leads (637 linhas)
-- [x] Funnels + Stages (513 linhas)
-- [x] Users (397 linhas)
-- [x] Conversations (500 linhas)
-- [x] **NOVO: Agents — CRUD de agentes IA (151 linhas)**
-- [x] **NOVO: SuperAdmin — listagem de tenants, KPIs, planos (653 linhas)**
-- [x] **NOVO: Upload — envio de arquivos/mídia (50 linhas)**
-
-### WhatsApp / UAZAPI
-- [x] Criar instância + QR Code
-- [x] Receber mensagens via webhook
-- [x] Salvar mensagens + criar lead automaticamente
-- [x] Enviar texto e mídia
-- [x] Status em tempo real via Socket.io
-- [x] Deletar conexão
-- [x] **NOVO: Webhook refatorado em arquivo separado (320 linhas)**
-- [x] **NOVO: Múltiplos paths de webhook (/webhook, /api/v1/whatsapp/webhook, /webhooks/uazapi/webhook)**
-
-### Frontend conectado ao backend real
-- [x] auth-store → login real
-- [x] whatsapp-api → WhatsApp real (agora com delete também)
-- [x] **NOVO: chat-store → conversas e mensagens reais via API**
-- [x] **NOVO: socket.ts → WebSocket client configurado**
+FASE 2 — Core ✅ Entregue
+✓ CRUD Leads, Funnels, Users
+✓ Conversations + Messages
+✓ Socket.io
+✓ UAZAPI: QR, envio, recebimento, webhook, delete
+✓ chat-store com API real
+✓ Deploy Hetzner — ✅ Feito
+✓ Ambiente acessível para testes — ✅ Staging no ar
 
 ---
 
-## 🔴 PENDENTE — Entregáveis do Contrato
-
-### Banco de Dados — Cláusula 2.1/2.2
-- [ ] **RLS (Row Level Security) — ZERO no projeto inteiro**
-- [ ] **Funções helper (get_user_tenant_id, etc) — ZERO**
-- [ ] **Teste de isolamento multi-tenant — ZERO**
-- [ ] **Triggers updated_at nativos SQL — ZERO**
-
-### Integração Asaas — Cláusula 2.3
-- [ ] **Criar cliente Asaas ao criar tenant — ZERO CÓDIGO**
-- [ ] **Criar assinatura recorrente — ZERO**
-- [ ] **Webhook de pagamento — ZERO**
-- [ ] **Espelhamento faturas — ZERO**
-- [ ] **Tela de fatura — ZERO**
-- [ ] **Suspensão por inadimplência — ZERO**
-
-> ⚠️ Busquei no projeto INTEIRO: a palavra "asaas" não aparece em NENHUM arquivo fora do PRD.
-
-### Integração Google Calendar — Cláusula 2.5
-- [ ] **OAuth2 — ZERO CÓDIGO**
-- [ ] **Criar evento — ZERO**
-- [ ] **Webhook de atualizações — ZERO**
-- [ ] **Config por usuário — ZERO**
-- [ ] **Tela frontend — ZERO**
-
-> ⚠️ Busquei no projeto INTEIRO: nenhum arquivo de integração Google existe.
-
-### Módulos Backend que NÃO existem
-- [ ] **Sales (vendas com validação hierárquica) — tabela no banco mas ZERO código**
-- [ ] **Schedules (agendamentos) — tabela no banco mas ZERO código**
-- [ ] **Notifications — tabela no banco mas ZERO código**
-- [ ] **Distribution / Roleta de leads — tabela no banco mas ZERO código**
-- [ ] **NPS (pesquisa satisfação) — tabela no banco mas ZERO código**
-- [ ] **Teams (CRUD equipes) — tabela no banco mas ZERO código**
-
-### Frontend — Stores ainda com dados falsos (MOCK)
-- [ ] **lists-store → mockLists**
-- [ ] **lead-history-store → mockHistoryEvents, mockLeadProfiles**
-- [ ] **lead-schedules-store → mock schedules**
-- [ ] **lead-demands-store → mock demands**
-- [ ] **support-tickets-store → mockSupportTickets**
-- [ ] **inventory-store → mockInventoryItems, mockStockMovements**
-- [ ] **admin-store → mockSuperAdminUsers, mockTenants**
-
-### Frontend — Telas sem conexão real
-- [ ] **Dashboard com dados reais (hoje parcialmente mock)**
-- [ ] **Funil visual drag-and-drop com dados reais**
-- [ ] **Tela de vendas funcional**
-- [ ] **Tela de clientes funcional**
-- [ ] **Tela de estoque funcional**
-- [ ] **Roleta de leads funcional**
-- [ ] **Tela de suporte funcional**
-
-### Documentação — Cláusula 7.1
-- [ ] **Documentação dos endpoints do SALT CRM para o Nicolas**
-  - *Obs: o arquivo endpoints.md que está no repo é da API da UAZAPI, não do SALT*
-- [ ] **README atualizado (hoje é template Lovable.dev)**
-- [ ] **Relatórios de progresso a cada 5 dias (Cláusula 3.4)**
-
-### Deploy e Testes
-- [ ] **Deploy na Hetzner**
-- [ ] **Ambiente acessível para teste**
-- [ ] **Testes E2E**
-- [ ] **CI/CD**
+FASE 3 — IA e Automação ✅ Maioria entregue
+✓ AI Agents — CRUD backend
+✓ AI prompt management com CRUD, testing e stats
+✓ SuperAdmin: tenants, KPIs, planos
+✓ Stores migrados para API real — ✅ **Todos 4 conectados à API** (sales-store, labels-store, postsale-store, delivery-store)
+✓ Notificações — backend CRUD completo
+⚠️ Registro de custo por token — tabela `ai_interaction_logs` existe, falta lógica de custo
+⚠️ Integração OpenAI/Claude via N8N — parcial (ai-prompts tem test via N8N, NPS job com webhook)
 
 ---
 
-## 📊 SCORECARD ATUALIZADO
+FASE 4 — Polish ⚠️ Maioria feita, pendências restantes
+✓ Módulo Sales — ✅ Backend completo (218 linhas service) + 4 componentes frontend + store migrado
+✓ Módulo Schedules — ✅ Backend completo (212 linhas) + 4 componentes funil
+✓ Módulo NPS — ✅ Backend completo (148 linhas) + NpsDetailModal
+✓ Módulo Teams — ✅ Backend completo (174 linhas) + EquipesSection
+✓ Módulo Notifications — ✅ Backend completo (115 linhas) + HierarchicalNotifications
+✓ Distribution / Roleta — ✅ Backend completo (229 linhas) + DistributionConfig + Roleta
+✓ Módulo PostSale — ✅ Backend NOVO (templates, jornadas, mensagens) + store migrado
+✓ Módulo Deliveries — ✅ Backend NOVO (CRUD + KPIs + role-based) + store migrado
+✓ Módulo Tags — ✅ Backend NOVO (CRUD) + labels-store migrado
+✓ RLS — ✅ Migration com 27 tabelas protegidas
+✕ Testes E2E — não iniciado
+✕ CI/CD — não iniciado
 
-| Área | % Feito | Status |
-|------|---------|--------|
-| Banco de Dados (sem RLS) | ~50% | 🟡 Parcial |
-| Auth/Login | ~95% | 🟢 OK |
-| CRUDs Backend (8 de 14 módulos) | ~55% | 🟡 Parcial |
-| WhatsApp (UAZAPI) | ~85% | 🟢 Quase OK |
-| Chat em tempo real | ~70% | 🟡 Parcial |
-| Asaas (cobrança) | 0% | 🔴 Zero |
-| Google Calendar | 0% | 🔴 Zero |
-| Agentes IA | ~15% | 🟡 Iniciado |
-| Frontend conectado | 4 de 12 stores | 🔴 ~30% |
-| Deploy/Testes | 0% | 🔴 Zero |
-| Documentação | ~5% | 🔴 Quase zero |
+---
+
+INTEGRAÇÕES CRÍTICAS ❌ Zero código até agora
+
+Asaas (Cláusula 2.3) — confirmado para essa semana:
+✕ Criar cliente ao criar tenant
+✕ Assinatura recorrente
+✕ Webhook de pagamento
+✕ Espelhamento de faturas + tela
+✕ Suspensão por inadimplência
+
+Google Calendar (Cláusula 2.5) — confirmado para essa semana:
+✕ OAuth2 por usuário
+✕ Criar evento via CRM
+✕ Webhook de atualizações
+✕ Config por usuário + tela frontend
+
+❓ Previsão de dias para cada integração — Asaas e Calendar são complexas, preciso saber o peso de cada uma na semana.
+
+---
+
+DOCUMENTAÇÃO ❌ Não iniciado
+✕ Endpoints do SALT CRM documentados para o Nicolas
+✕ README atualizado
+✕ Relatórios de progresso a cada 5 dias (Cláusula 3.4)
+
+---
+
+## 📊 RESUMO GERAL — 24 módulos backend registrados no app.ts
+
+```
+auth, users, funnels, leads, conversations, whatsapp, agents,
+superadmin, products, sales, origins, schedules, notifications,
+distribution, nps, teams, tags, postsale, deliveries,
+support-tickets, super-admin (v2), ai-prompts, upload, webhooks
+```
+
+Todos em `/api/v1/` com auth middleware.

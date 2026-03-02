@@ -391,6 +391,10 @@ model Tenant {
   notifications       Notification[]
   supportTickets      SupportTicket[]
   criticalAlerts      CriticalAlert[]
+  postSaleTemplates   PostSaleTemplate[]
+  postSaleJourneys    PostSaleJourney[]
+  postSaleMessages    PostSaleMessage[]
+  deliveries          Delivery[]
 
   @@index([status])
   @@index([lifecycleStatus])
@@ -512,6 +516,7 @@ model User {
   dashboardMetrics      DashboardMetricDaily[]
   notifications         Notification[]
   supportTickets        SupportTicket[]
+  deliveriesAsSeller    Delivery[]             @relation("DeliverySeller")
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -971,7 +976,9 @@ model Sale {
   updatedAt           DateTime         @updatedAt @map("updated_at")
 
   // Relations
-  npsSurveys NpsSurvey[]
+  npsSurveys         NpsSurvey[]
+  postSaleJourneys   PostSaleJourney[]
+  deliveries         Delivery[]
 
   @@index([tenantId])
   @@index([tenantId, saleDate(sort: Desc)])
@@ -1457,3 +1464,142 @@ model AiAgent {
   @@index([tenantId])
   @@map("ai_agents")
 }
+
+// ============================================================
+// PÓS-VENDA - TEMPLATES E JORNADAS
+// ============================================================
+
+model PostSaleTemplate {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  name        String
+  dayOffset   Int      @map("day_offset")   // D+X dias após venda
+  channel     String   @default("whatsapp") // whatsapp, email, sms
+  content     String
+  useAI       Boolean  @default(false) @map("use_ai")
+  aiPrompt    String?  @map("ai_prompt")
+  status      String   @default("active")   // active, inactive
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  journeyMessages PostSaleMessage[]
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@map("post_sale_templates")
+}
+
+model PostSaleJourney {
+  id            String    @id @default(uuid())
+  tenantId      String    @map("tenant_id")
+  tenant        Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  saleId        String    @map("sale_id")
+  sale          Sale      @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  
+  clientName    String    @map("client_name")
+  productSold   String    @map("product_sold")
+  saleDate      DateTime  @map("sale_date")
+  startedAt     DateTime  @default(now()) @map("started_at")
+  completedAt   DateTime? @map("completed_at")
+  status        String    @default("active") // active, completed, cancelled
+  messagesTotal Int       @default(0) @map("messages_total")
+  messagesSent  Int       @default(0) @map("messages_sent")
+
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  messages PostSaleMessage[]
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([saleId])
+  @@map("post_sale_journeys")
+}
+
+model PostSaleMessage {
+  id              String    @id @default(uuid())
+  tenantId        String    @map("tenant_id")
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  templateId      String?   @map("template_id")
+  template        PostSaleTemplate? @relation(fields: [templateId], references: [id])
+  journeyId       String    @map("journey_id")
+  journey         PostSaleJourney   @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+  
+  clientName      String    @map("client_name")
+  channel         String    @default("whatsapp")
+  content         String
+  wasAIGenerated  Boolean   @default(false) @map("was_ai_generated")
+  scheduledFor    DateTime  @map("scheduled_for")
+  sentAt          DateTime? @map("sent_at")
+  status          String    @default("pending") // pending, sent, failed, cancelled
+  response        String?
+  respondedAt     DateTime? @map("responded_at")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@index([tenantId])
+  @@index([journeyId])
+  @@index([tenantId, status])
+  @@index([tenantId, scheduledFor])
+  @@map("post_sale_messages")
+}
+
+// ============================================================
+// ENTREGAS E SERVIÇOS
+// ============================================================
+
+model Delivery {
+  id               String    @id @default(uuid())
+  tenantId         String    @map("tenant_id")
+  tenant           Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  saleId           String    @map("sale_id")
+  sale             Sale      @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  saleType         String    @default("produto") @map("sale_type") // produto, servico
+  
+  // Dados do cliente
+  clientName       String    @map("client_name")
+  clientPhone      String    @map("client_phone")
+  clientEmail      String?   @map("client_email")
+
+  // Dados do item
+  productName      String    @map("product_name")
+  productCode      String?   @map("product_code")
+  saleValue        Decimal   @map("sale_value") @db.Decimal(12, 2)
+  
+  // Status
+  deliveryStatus   String    @default("scheduled") @map("delivery_status") // immediate, scheduled, completed
+  
+  // Agendamento
+  scheduledDate    DateTime? @map("scheduled_date")
+  scheduledShift   String?   @map("scheduled_shift") // manha, tarde, noite, personalizado
+  scheduledTime    String?   @map("scheduled_time")
+  deliveryContact  String?   @map("delivery_contact")
+  deliveryAddress  Json?     @map("delivery_address")
+  
+  // Hierarquia
+  sellerId         String    @map("seller_id")
+  seller           User      @relation("DeliverySeller", fields: [sellerId], references: [id])
+  sellerName       String    @map("seller_name")
+  
+  // Timestamps
+  saleDate         DateTime  @map("sale_date")
+  completedAt      DateTime? @map("completed_at")
+  observations     String?
+
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  @@index([tenantId])
+  @@index([tenantId, deliveryStatus])
+  @@index([sellerId])
+  @@index([saleId])
+  @@index([tenantId, scheduledDate])
+  @@map("deliveries")
+}
+
