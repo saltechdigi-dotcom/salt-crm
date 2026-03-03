@@ -24,8 +24,8 @@ export const findSupportTicketsSchema = z.object({
     status: z.enum(['open', 'in_progress', 'resolved']).optional(),
     priority: z.enum(['low', 'medium', 'high', 'critical']).optional(),
     type: z.enum(['whatsapp', 'funnel', 'ai', 'billing', 'technical', 'other']).optional(),
-    page: z.string().optional().transform(Number).pipe(z.number().int().positive().optional()),
-    limit: z.string().optional().transform(Number).pipe(z.number().int().positive().max(100).optional()),
+    page: z.coerce.number().int().positive().optional(),
+    limit: z.coerce.number().int().positive().max(100).optional(),
 });
 
 export const supportTicketParamsSchema = z.object({

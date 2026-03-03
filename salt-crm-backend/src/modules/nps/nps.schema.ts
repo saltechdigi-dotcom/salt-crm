@@ -19,7 +19,7 @@ export const listNpsSurveysQuerySchema = z.object({
     classification: z.enum(['promoter', 'passive', 'detractor']).optional(),
     sentVia: z.enum(['whatsapp', 'email', 'sms']).optional(),
     agentId: z.string().uuid().optional(),
-    responded: z.string().transform(v => v === 'true').optional(),
+    responded: z.coerce.boolean().optional(),
     startDate: z.string().optional(),
     endDate: z.string().optional(),
 });

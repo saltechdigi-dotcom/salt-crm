@@ -15,7 +15,7 @@ export const createNotificationSchema = z.object({
 export const listNotificationsQuerySchema = z.object({
     page: z.coerce.number().int().min(1).default(1),
     limit: z.coerce.number().int().min(1).max(100).default(20),
-    isRead: z.string().transform(v => v === 'true').optional(),
+    isRead: z.coerce.boolean().optional(),
     category: z.enum(['message', 'team_message', 'operational', 'institutional', 'sale']).optional(),
     type: z.enum(['info', 'success', 'warning', 'error']).optional(),
 });

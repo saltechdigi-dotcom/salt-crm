@@ -17,7 +17,7 @@ export const listTeamsQuerySchema = z.object({
     page: z.coerce.number().int().min(1).default(1),
     limit: z.coerce.number().int().min(1).max(100).default(20),
     search: z.string().optional(),
-    isActive: z.string().transform(v => v === 'true').optional(),
+    isActive: z.coerce.boolean().optional(),
 });
 
 export const teamIdParamSchema = z.object({

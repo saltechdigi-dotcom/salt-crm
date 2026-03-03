@@ -39,8 +39,8 @@ export const tenantParamsSchema = z.object({
 export const listTenantsSchema = z.object({
     status: z.enum(['active', 'suspended', 'cancelled']).optional(),
     search: z.string().optional(),
-    page: z.string().optional().transform(Number).pipe(z.number().int().positive().optional()),
-    limit: z.string().optional().transform(Number).pipe(z.number().int().positive().max(100).optional()),
+    page: z.coerce.number().int().positive().optional(),
+    limit: z.coerce.number().int().positive().max(100).optional(),
 });
 
 export const resolveAlertSchema = z.object({

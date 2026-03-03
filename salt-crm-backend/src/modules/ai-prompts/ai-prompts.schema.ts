@@ -30,7 +30,7 @@ export const aiPromptIdSchema = z.object({
 
 export const listAiPromptsSchema = z.object({
     type: z.enum(['sdr', 'followup', 'nps', 'qualification', 'objection']).optional(),
-    isActive: z.string().optional().transform(v => v === 'true'),
+    isActive: z.coerce.boolean().optional(),
 });
 
 export const testAiPromptSchema = z.object({
