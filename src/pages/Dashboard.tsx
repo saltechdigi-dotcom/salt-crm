@@ -155,33 +155,42 @@ const Dashboard: React.FC = () => {
   }, []);
 
   // ========== MAP API LEADS TO TABLE FORMAT ==========
-  const mapLeadToTableLead = (lead: any): TableLead => ({
-    id: lead.id || '',
-    name: lead.name || lead.clientName || 'Sem nome',
-    phone: lead.phone || lead.whatsapp || '',
-    origin: lead.source || lead.origin || 'WhatsApp',
-    status: lead.lifecycleStatus || lead.status || 'frio',
-    statusColor: (() => {
-      const s = (lead.lifecycleStatus || lead.status || 'frio').toLowerCase();
-      if (s.includes('frio')) return '#5B8DEF';
-      if (s.includes('morno')) return '#F5A15D';
-      if (s.includes('quente')) return '#E96A6A';
-      if (s.includes('qualificado')) return '#4FC3B5';
-      if (s.includes('atendimento')) return '#9B7CF4';
-      if (s.includes('negocia')) return '#F4C95D';
-      if (s.includes('ganho')) return '#4CAF50';
-      if (s.includes('perdido')) return '#9E9E9E';
-      if (s.includes('arquivado')) return '#607D8B';
-      return '#5B8DEF';
-    })(),
-    qualified: lead.qualifiedByAI || false,
-    dataCriacao: lead.createdAt ? new Date(lead.createdAt).toLocaleDateString('pt-BR') : '',
-    ultInt: lead.lastInteractionAt ? new Date(lead.lastInteractionAt).toLocaleDateString('pt-BR') : '-',
-    vendedor: lead.assignedTo?.name || lead.assignedToName || '-',
-    gerente: lead.manager?.name || lead.managerName || '-',
-    resumo: lead.aiSummary || lead.notes || '',
-    produto: lead.interestedProduct || '',
-  });
+  const temperatureToStatus: Record<string, string> = {
+    cold: 'frio',
+    warm: 'morno',
+    hot: 'quente',
+  };
+
+  const mapLeadToTableLead = (lead: any): TableLead => {
+    const rawStatus = lead.lifecycleStatus || temperatureToStatus[lead.temperature] || lead.status || 'frio';
+    return {
+      id: lead.id || '',
+      name: lead.name || lead.clientName || 'Sem nome',
+      phone: lead.phone || lead.whatsapp || '',
+      origin: lead.origin?.name || lead.source || 'WhatsApp',
+      status: rawStatus,
+      statusColor: (() => {
+        const s = rawStatus.toLowerCase();
+        if (s.includes('frio') || s === 'cold') return '#5B8DEF';
+        if (s.includes('morno') || s === 'warm') return '#F5A15D';
+        if (s.includes('quente') || s === 'hot') return '#E96A6A';
+        if (s.includes('qualificado')) return '#4FC3B5';
+        if (s.includes('atendimento')) return '#9B7CF4';
+        if (s.includes('negocia')) return '#F4C95D';
+        if (s.includes('ganho')) return '#4CAF50';
+        if (s.includes('perdido')) return '#9E9E9E';
+        if (s.includes('arquivado')) return '#607D8B';
+        return '#5B8DEF';
+      })(),
+      qualified: lead.qualifiedByAi || lead.qualifiedByAI || false,
+      dataCriacao: lead.createdAt ? new Date(lead.createdAt).toLocaleDateString('pt-BR') : '',
+      ultInt: lead.lastInteractionAt ? new Date(lead.lastInteractionAt).toLocaleDateString('pt-BR') : '-',
+      vendedor: lead.assignedTo?.name || lead.assignedToName || '-',
+      gerente: lead.manager?.name || lead.managerName || '-',
+      resumo: lead.aiSummary || lead.notes || '',
+      produto: lead.interestedProduct || '',
+    };
+  };
 
   // Derive table leads from API data
   const tableLeadsFunil = useMemo(() => apiLeads.map(mapLeadToTableLead), [apiLeads]);
